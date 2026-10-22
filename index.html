@@ -4,7 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F7F5F2">
-<title>CG Atelier</title>
+<title>Configurez votre pergola – CG Atelier</title>
+<!-- Vorschau beim Teilen (Crawler lesen kein JavaScript, daher statisch auf FR) -->
+<meta name="description" content="Configurez votre pergola bioclimatique en 3D et recevez votre devis indicatif. CG Atelier, partenaire officiel Gibus au Luxembourg, showroom de 600 m² à Tarchamps.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Configurez votre pergola en 2 minutes – CG Atelier">
+<meta property="og:description" content="Votre pergola en 3D, la course du soleil chez vous et votre devis indicatif. Partenaire officiel Gibus au Luxembourg.">
+<meta property="og:locale" content="fr_LU">
+<meta property="og:locale:alternate" content="de_LU">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232B2D30'/%3E%3Cpath d='M14 22h36M18 22v28M46 22v28M20 28h24M20 33h24M20 38h24' stroke='%23F7F5F2' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- DSGVO-Hinweis: Für den Livegang Inter selbst hosten (woff2) statt Google Fonts zu laden. -->
@@ -458,33 +466,46 @@ html.embed .app { height: 780px; }
    1. CONFIG
    ===================================================================== */
 
-/* Alle Preise in EUR inkl. MwSt. – PLATZHALTER für die Demo.
-   Vor dem Livegang durch die echten Werte von CG Atelier ersetzen. */
+/* Alle Preise in EUR inkl. MwSt., inkl. Lieferung und Montage.
+   SCHÄTZWERTE aus Marktrecherche (Oktober 2026, Händlerpreise DE/IT/BE/UK, siehe README „Preisquellen“).
+   Vor dem Livegang durch die echten Einkaufspreise und Margen von CG Atelier ersetzen. */
 const PRICES = {
-  "pricesVersion": "demo-placeholder",
-  "models": {
-    "joy":         { "base": 3000, "perM2": 850 },
-    "twist":       { "base": 3500, "perM2": 1000 },
-    "varia":       { "base": 4500, "perM2": 1250 },
-    "ts_lamellen": { "base": 3500, "perM2": 950 },
-    "ts_glas":     { "base": 2500, "perM2": 650 },
-    "medroom":     { "base": 3000, "perM2": 800 },
-    "stretch":     { "base": 2500, "perM2": 600 }
+  "pricesVersion": "schaetzung-2026-10",
+  "models": {                                        // Grundpreis + Preis pro m² Dachfläche
+    "joy":         { "base": 6500,  "perM2": 450 },
+    "twist":       { "base": 8500,  "perM2": 500 },
+    "varia":       { "base": 10500, "perM2": 550 },
+    "ts_lamellen": { "base": 5500,  "perM2": 600 },
+    "ts_glas":     { "base": 3000,  "perM2": 500 },
+    "medroom":     { "base": 7000,  "perM2": 350 },
+    "stretch":     { "base": 16500, "perM2": 300 }
   },
-  "freestanding": 1200,     // Aufpreis freistehend statt Wandanbau
-  "zipPerM": 450,           // ZIP-Screen pro laufendem Meter Seite
-  "glassPerM": 750,         // Glas-Schiebewand pro laufendem Meter Seite
-  "led": 1200,
-  "heaterEach": 900,
+  "freestanding": 1500,     // Aufpreis freistehend statt Wandanbau (2 Pfosten + Träger)
+  "zipEach": 800,           // ZIP-Screen: je Seite (Kassette, Motor, Führungen) …
+  "zipPerM": 350,           // … plus pro laufendem Meter Seite
+  "glassPerM": 950,         // Glas-Schiebewand pro laufendem Meter Seite
+  "led": 1200,              // LED-Beleuchtung bis ledLargeFromM2 …
+  "ledLarge": 1800,         // … darüber
+  "ledLargeFromM2": 15,
+  "heaterEach": 1100,       // Infrarot-Heizstrahler inkl. Anschluss
   "sensor": 450,
-  "smarthome": 350,
-  "solar": 2800,            // nur Twist und Varia
-  "lightbandPerM": 600,     // ANNAHME: Glas-Lichtband TS Lamellendach, pro m Breite
-  "customColorPct": 0.06,   // Sonderfarbe: Aufschlag auf Grundpreis + Fläche
-  "install": 1800,          // Lieferung, Montage, Inbetriebnahme
+  "smarthome": 400,
+  "solar": 1500,            // Solar-Lamellen (nur Twist, Varia): Pauschale …
+  "solarPerM2": 350,        // … plus pro m² Dachfläche
+  "lightbandPerM": 600,     // Glas-Lichtband TS Lamellendach, pro m Breite (Schätzung)
+  "customColorPct": 0.10,   // Sonderfarbe: Aufschlag auf Grundpreis + Fläche …
+  "customColorMin": 500,    // … mindestens
+  "install": 1550,          // Lieferung LU/BE, Montage, Inbetriebnahme: Pauschale …
+  "installPerM2": 50,       // … plus pro m²
   "rangeLow": 0.92,
   "rangeHigh": 1.10,
   "roundTo": 500
+};
+/* Referenzwerte aus dem Briefing – nur für den Selbsttest der Formel (Kontrollbeispiel 25.650 €) */
+const REFERENCE_PRICES = {
+  models: { varia: { base: 4500, perM2: 1250 } }, freestanding: 1200, zipPerM: 450, glassPerM: 750, led: 1200,
+  heaterEach: 900, sensor: 450, smarthome: 350, solar: 2800, lightbandPerM: 600, customColorPct: 0.06, install: 1800,
+  rangeLow: 0.92, rangeHigh: 1.10, roundTo: 500
 };
 
 /* Preisanzeige:
@@ -493,7 +514,7 @@ const PRICES = {
    'from'  = nur „ab“-Preis je Modell, Spanne erst nach E-Mail */
 const PRICE_MODE = 'blur';
 /* Kleines Etikett „Demo-Preise“ neben dem Preis anzeigen (vor Livegang auf false) */
-const SHOW_DEMO_BADGE = true;
+const SHOW_DEMO_BADGE = true;    // erscheint, solange pricesVersion „demo“ oder „schaetzung“ enthält
 
 /* Leer lassen = Demo-Modus (Lead nur in der Konsole).
    Live: URL eines Make/Zapier/n8n-Webhooks, der an info@cgatelier.lu mailt und ins CRM (z. B. monday) schreibt. */
@@ -503,27 +524,34 @@ const PRIVACY_URL = 'https://www.cgatelier.lu/';      // Link zur Datenschutzerk
 /* Tracking erst nach Einwilligung? true = wartet auf postMessage {type:'cg-configurator:consent', granted:true} oder window.CG_CONSENT = true */
 const TRACKING_REQUIRES_CONSENT = false;
 
-/* Modelle: Typ, Grenzen in cm je Montageart, Lamellenwinkel, Solar, Profilmaße (m) für die 3D-Ansicht.
-   Grenzen außer Varia sind ANNAHMEN – beim Inhaber bestätigen. */
+/* Modelle: Typ, Maßgrenzen, Pfosten, Lamellenwinkel, Solar, Profilmaße (m) für die 3D-Ansicht.
+   limits: je Montageart eine Liste erlaubter Bereiche in cm (Breite w = entlang der Hauswand / Front, Tiefe d).
+   Zwei Bereiche = zwei Ausführungen, z. B. Wandanbau frontal (Lamellen parallel zur Wand) und seitlich (Lamellen quer).
+   midW / midD: ab dieser Breite bzw. Tiefe (cm) kommt ein Mittelpfosten bzw. ein seitliches Pfostenpaar dazu.
+   Quellen: Gibus-Datenblätter über Archiproducts/Architonic/Edilportale, Händler-Kalkulatoren, TS-Aluminium-
+   und Markilux-Datenblätter (siehe README). Med Room und TS-Glasdach: Händlerangaben bzw. Schätzung. */
 const MODELS = {
-  joy:         { type: 'bio',     louverMax: 120, solar: false, post: 0.13, beam: 0.25,
-                 limits: { wall: { w: [200, 450], d: [200, 500] }, free: { w: [200, 450], d: [200, 500] } } },
-  twist:       { type: 'bio',     louverMax: 120, solar: true,  post: 0.15, beam: 0.26,
-                 limits: { wall: { w: [200, 500], d: [200, 600] }, free: { w: [200, 500], d: [200, 600] } } },
-  varia:       { type: 'bio',     louverMax: 135, solar: true,  post: 0.15, beam: 0.28, zipIntegrated: true, sixPostsFromDepth: 620,
-                 limits: { wall: { w: [200, 600], d: [200, 450] }, free: { w: [200, 450], d: [200, 720] } } },
-  ts_lamellen: { type: 'bio',     louverMax: 120, solar: false, post: 0.14, beam: 0.24, lightband: true,
-                 limits: { wall: { w: [200, 600], d: [200, 500] }, free: { w: [200, 600], d: [200, 500] } } },
-  ts_glas:     { type: 'glass',   post: 0.12, beam: 0.2,
-                 limits: { wall: { w: [200, 700], d: [200, 500] }, free: { w: [200, 700], d: [200, 500] } } },
-  medroom:     { type: 'retract', post: 0.14, beam: 0.24,
-                 limits: { wall: { w: [200, 600], d: [200, 600] }, free: { w: [200, 600], d: [200, 600] } } },
-  stretch:     { type: 'retract', post: 0.12, beam: 0.2,
-                 limits: { wall: { w: [200, 700], d: [200, 700] }, free: { w: [200, 700], d: [200, 700] } } }
+  joy:         { type: 'bio',     louverMax: 120, solar: false, post: 0.13, beam: 0.25, midW: 610, midD: 610,
+                 limits: { wall: [{ w: [200, 450], d: [210, 690] }, { w: [200, 710], d: [210, 450] }],
+                           free: [{ w: [200, 450], d: [210, 690] }] } },
+  twist:       { type: 'bio',     louverMax: 120, solar: true,  post: 0.15, beam: 0.26, midW: 610, midD: { wall: 610, free: 670 },
+                 limits: { wall: [{ w: [200, 450], d: [210, 710] }, { w: [200, 710], d: [210, 450] }],
+                           free: [{ w: [200, 450], d: [210, 750] }] } },
+  varia:       { type: 'bio',     louverMax: 135, solar: true,  post: 0.17, beam: 0.28, zipIntegrated: true, midW: 600, midD: 600,
+                 limits: { wall: [{ w: [200, 450], d: [200, 720] }, { w: [200, 720], d: [200, 450] }],
+                           free: [{ w: [200, 450], d: [200, 720] }] } },
+  ts_lamellen: { type: 'bio',     louverMax: 135, solar: false, post: 0.14, beam: 0.24, lightband: true, midW: 600, midD: 9999,
+                 limits: { wall: [{ w: [200, 800], d: [200, 450] }], free: [{ w: [200, 800], d: [200, 450] }] } },
+  ts_glas:     { type: 'glass',   post: 0.12, beam: 0.2, midW: 450, midD: 9999,
+                 limits: { wall: [{ w: [200, 700], d: [200, 500] }], free: [{ w: [200, 700], d: [200, 500] }] } },
+  medroom:     { type: 'retract', post: 0.15, beam: 0.24, midW: 9999, midD: 9999,
+                 limits: { wall: [{ w: [250, 500], d: [200, 600] }], free: [{ w: [250, 500], d: [200, 600] }] } },
+  stretch:     { type: 'retract', post: 0.125, beam: 0.2, midW: 9999, midD: 9999,
+                 limits: { wall: [{ w: [201, 700], d: [250, 700] }], free: [{ w: [201, 700], d: [250, 700] }] } }
 };
 const ROOF_TYPES = { bio: ['joy', 'twist', 'varia', 'ts_lamellen'], glass: ['ts_glas'], retract: ['medroom', 'stretch'] };
-/* Mittelpfosten ab dieser Spannweite (cm), außer Varia-Tiefe (siehe sixPostsFromDepth) */
-const MID_POST_FROM = 450;
+/* Lamellen sind max. so lang (cm); breitere Anlagen bekommen quer zur Wand laufende Lamellen */
+const LOUVER_SPAN = 450;
 
 /* Nutzungszweck → Empfehlung (Schritt 1) */
 const RECOMMEND = {
@@ -702,10 +730,13 @@ const I18N = {
       subWall: 'Largeur le long de la façade, profondeur vers le jardin.',
       subFree: 'Largeur et profondeur de la surface couverte.',
       width: 'Largeur', depth: 'Profondeur', area: 'Surface', unit: 'cm',
-      limits: 'Possible avec {model} ({mount}) : {w} × {d}.',
+      limits: 'Possible avec {model} ({mount}) : {sizes} (largeur × profondeur).', or: 'ou',
+      altWide: 'Plus large possible : jusqu’à {w} si la profondeur ne dépasse pas {d}.',
+      altDeep: 'Plus profond possible : jusqu’à {d} si la largeur ne dépasse pas {w}.',
+      otherAdjusted: '{dim} ajustée à {val} pour cette taille.',
       max: 'Maximum {max} pour ce modèle.', min: 'Minimum {min}.',
       bigger: 'Plus grand ? Nous couplons deux modules, parlez-nous-en.',
-      suggest: '{model} va jusqu’à {w} × {d}.', choose: 'Choisir {model}'
+      suggest: '{model} existe dans cette taille.', choose: 'Choisir {model}'
     },
     s4: {
       title: 'Quel toit pour votre pergola ?',
@@ -715,7 +746,7 @@ const I18N = {
         glass: { t: 'Toit en verre', d: 'Lumineux toute l’année, à l’abri de la pluie.' },
         retract: { t: 'Rétractable', d: 'Toile ou PVC sur rails : ouvert vers le ciel quand vous le voulez.' }
       },
-      fit: 'Jusqu’à {w} × {d} : vos dimensions seront ajustées.'
+      fit: 'Vos dimensions seront ajustées à {w} × {d}.'
     },
     models: {
       joy: { brand: 'Gibus · Italie', name: 'Joy', benefit: 'L’entrée de gamme Gibus : compacte, élégante, lames orientables jusqu’à 120°.' },
@@ -876,10 +907,13 @@ const I18N = {
       subWall: 'Breite entlang der Hauswand, Tiefe Richtung Garten.',
       subFree: 'Breite und Tiefe der überdachten Fläche.',
       width: 'Breite', depth: 'Tiefe', area: 'Fläche', unit: 'cm',
-      limits: 'Möglich mit {model} ({mount}): {w} × {d}.',
+      limits: 'Möglich mit {model} ({mount}): {sizes} (Breite × Tiefe).', or: 'oder',
+      altWide: 'Breiter möglich: bis {w}, wenn die Tiefe höchstens {d} beträgt.',
+      altDeep: 'Tiefer möglich: bis {d}, wenn die Breite höchstens {w} beträgt.',
+      otherAdjusted: '{dim} für diese Größe auf {val} angepasst.',
       max: 'Maximal {max} bei diesem Modell.', min: 'Mindestens {min}.',
       bigger: 'Größer? Wir koppeln zwei Module, sprechen Sie uns an.',
-      suggest: '{model} geht bis {w} × {d}.', choose: '{model} wählen'
+      suggest: '{model} gibt es in dieser Größe.', choose: '{model} wählen'
     },
     s4: {
       title: 'Welches Dach passt zu Ihnen?',
@@ -889,7 +923,7 @@ const I18N = {
         glass: { t: 'Glasdach', d: 'Ganzjährig hell und vor Regen geschützt.' },
         retract: { t: 'Ausfahrbar', d: 'Tuch oder PVC auf Schienen: bei Bedarf offen zum Himmel.' }
       },
-      fit: 'Bis {w} × {d}: Ihre Maße werden angepasst.'
+      fit: 'Ihre Maße werden auf {w} × {d} angepasst.'
     },
     models: {
       joy: { brand: 'Gibus · Italien', name: 'Joy', benefit: 'Der Gibus-Einstieg: kompakt, elegant, Lamellen bis 120° drehbar.' },
@@ -998,6 +1032,7 @@ function t(key, vars) {
 function fmtInt(n) { return new Intl.NumberFormat(state.lang === 'de' ? 'de-DE' : 'fr-FR', { maximumFractionDigits: 0 }).format(n); }
 function fmtEur(n) { return fmtInt(n) + ' €'; }
 function fmtM(cm) { return (cm / 100).toFixed(2).replace('.', ',') + ' m'; }
+function fmtRange([a, b]) { return `${(a / 100).toFixed(2).replace('.', ',')}–${fmtM(b)}`; }
 function fmtArea(w, d) { return (w * d / 10000).toFixed(1).replace('.', ',') + ' m²'; }
 function dir16(az) { return t('compass16')[Math.round(((az % 360) + 360) % 360 / 22.5) % 16]; }
 function modelLabel(k) { const m = t('models.' + k); return `${m.brand.split(' · ')[0]} ${m.name}`; }
@@ -1036,7 +1071,36 @@ const SIDES_WALL = ['left', 'front', 'right'];
 const SIDES_FREE = ['front', 'right', 'back', 'left'];
 const activeSides = (s) => (s.mount === 'wall' ? SIDES_WALL : SIDES_FREE);
 const sideLengthCm = (s, side) => (side === 'front' || side === 'back' ? s.width : s.depth);
-const limitsFor = (model, mount) => MODELS[model].limits[mount];
+const limitConfigs = (model, mount) => MODELS[model].limits[mount];
+/* Erlaubter Bereich je Maß – abhängig vom jeweils anderen Maß (ohne w/d: Gesamthülle aller Ausführungen) */
+function limitsFor(model, mount, w, d) {
+  const cs = limitConfigs(model, mount);
+  const pick = (dim, other, val) => {
+    const ok = val == null ? cs : cs.filter(c => val >= c[other][0] && val <= c[other][1]);
+    const list = ok.length ? ok : cs;
+    return [Math.min(...list.map(c => c[dim][0])), Math.max(...list.map(c => c[dim][1]))];
+  };
+  return { w: pick('w', 'd', d), d: pick('d', 'w', w) };
+}
+const fitsModel = (model, mount, w, d) => limitConfigs(model, mount).some(c => w >= c.w[0] && w <= c.w[1] && d >= c.d[0] && d <= c.d[1]);
+/* Nächstgelegene zulässige Größe (kleinste Änderung; prefer = 'w'|'d' hält dieses Maß möglichst fest) */
+function fitLimits(model, mount, w, d, prefer) {
+  let best = null;
+  for (const c of limitConfigs(model, mount)) {
+    const nw = clamp(w, c.w[0], c.w[1]), nd = clamp(d, c.d[0], c.d[1]);
+    const cost = Math.abs(nw - w) * (prefer === 'w' ? 10 : 1) + Math.abs(nd - d) * (prefer === 'd' ? 10 : 1);
+    if (!best || cost < best.cost) best = { w: nw, d: nd, cost };
+  }
+  return best;
+}
+/* Pfostenplan: Mittelpfosten vorne (und hinten) ab midW, seitliches Pfostenpaar ab midD */
+function postPlan(s) {
+  const M = MODELS[s.model];
+  const midW = s.width > M.midW;
+  const midD = s.depth > (typeof M.midD === 'object' ? M.midD[s.mount] : M.midD);
+  const front = midW ? 3 : 2;
+  return { midW, midD, count: (s.mount === 'free' ? front * 2 : front) + (midD ? 2 : 0) };
+}
 
 function defaultState() {
   return {
@@ -1081,9 +1145,8 @@ function normalize(s) {
   const M = MODELS[s.model];
   s.roofType = M.type;
   s.azimuth = Number.isFinite(+s.azimuth) ? ((Math.round(+s.azimuth) % 360) + 360) % 360 : 180;
-  const L = limitsFor(s.model, s.mount);
-  const w = clamp(Math.round(s.width) || L.w[0], L.w[0], L.w[1]);
-  const d = clamp(Math.round(s.depth) || L.d[0], L.d[0], L.d[1]);
+  const f = fitLimits(s.model, s.mount, Math.round(s.width) || 0, Math.round(s.depth) || 0);
+  const w = f.w, d = f.d;
   if (w !== s.width || d !== s.depth) {
     s.width = w; s.depth = d;
     msgs.push(t('toast.clamped', { w: fmtM(w), d: fmtM(d), model: modelLabel(s.model) }));
@@ -1127,39 +1190,49 @@ function applyPurpose(p) {
    ===================================================================== */
 const roundTo = (x, step) => Math.round(x / step) * step;
 
-function calcPrice(s) {
-  const m = PRICES.models[s.model];
+/* Einzelpreise (auch für die Anzeige in den Schritten) */
+const areaM2 = (s) => s.width * s.depth / 10000;
+const sideCost = (s, side, P = PRICES) => {
+  const lenM = sideLengthCm(s, side) / 100;
+  if (s.sides[side] === 'zip') return (P.zipEach || 0) + lenM * P.zipPerM;
+  if (s.sides[side] === 'glass') return lenM * P.glassPerM;
+  return 0;
+};
+const ledPrice = (s, P = PRICES) => (areaM2(s) > (P.ledLargeFromM2 ?? Infinity) ? (P.ledLarge ?? P.led) : P.led);
+const solarPrice = (s, P = PRICES) => P.solar + areaM2(s) * (P.solarPerM2 || 0);
+
+function calcPrice(s, P = PRICES) {
+  const m = P.models[s.model];
   const M = MODELS[s.model];
   const items = [];
   const area = (s.width * s.depth * m.perM2) / 10000;     // in cm² gerechnet → keine Rundungsfehler
   items.push(['base', m.base], ['area', area]);
-  if (s.colorFrame === 'custom' || s.colorRoof === 'custom') items.push(['customColor', (m.base + area) * PRICES.customColorPct]);
-  if (s.mount === 'free') items.push(['freestanding', PRICES.freestanding]);
+  if (s.colorFrame === 'custom' || s.colorRoof === 'custom') items.push(['customColor', Math.max((m.base + area) * P.customColorPct, P.customColorMin || 0)]);
+  if (s.mount === 'free') items.push(['freestanding', P.freestanding]);
   for (const side of activeSides(s)) {
-    const lenM = sideLengthCm(s, side) / 100;
-    if (s.sides[side] === 'zip') items.push(['zip_' + side, lenM * PRICES.zipPerM]);
-    if (s.sides[side] === 'glass') items.push(['glass_' + side, lenM * PRICES.glassPerM]);
+    const c = sideCost(s, side, P);
+    if (c) items.push([s.sides[side] + '_' + side, c]);
   }
   const o = s.options;
-  if (o.led) items.push(['led', PRICES.led]);
-  if (o.heaters > 0) items.push(['heaters', o.heaters * PRICES.heaterEach]);
-  if (o.sensor) items.push(['sensor', PRICES.sensor]);
-  if (o.smarthome) items.push(['smarthome', PRICES.smarthome]);
-  if (o.solar && M.solar) items.push(['solar', PRICES.solar]);
-  if (o.lightband && M.lightband && s.mount === 'wall') items.push(['lightband', (s.width / 100) * PRICES.lightbandPerM]);
-  items.push(['install', PRICES.install]);
-  const P = Math.round(items.reduce((a, [, v]) => a + v, 0));
+  if (o.led) items.push(['led', ledPrice(s, P)]);
+  if (o.heaters > 0) items.push(['heaters', o.heaters * P.heaterEach]);
+  if (o.sensor) items.push(['sensor', P.sensor]);
+  if (o.smarthome) items.push(['smarthome', P.smarthome]);
+  if (o.solar && M.solar) items.push(['solar', solarPrice(s, P)]);
+  if (o.lightband && M.lightband && s.mount === 'wall') items.push(['lightband', (s.width / 100) * P.lightbandPerM]);
+  items.push(['install', P.install + areaM2(s) * (P.installPerM2 || 0)]);
+  const total = Math.round(items.reduce((a, [, v]) => a + v, 0));
   return {
-    P,
-    low: roundTo(P * PRICES.rangeLow, PRICES.roundTo),
-    high: roundTo(P * PRICES.rangeHigh, PRICES.roundTo),
+    P: total,
+    low: roundTo(total * P.rangeLow, P.roundTo),
+    high: roundTo(total * P.rangeHigh, P.roundTo),
     breakdown: items.map(([item, amount]) => ({ item, amount: Math.round(amount) }))
   };
 }
 /* „ab“-Preis eines Modells: kleinste Größe, Wandanbau, ohne Optionen */
 function fromPrice(model) {
-  const L = limitsFor(model, 'wall');
-  const s = { ...defaultState(), model, width: L.w[0], depth: L.d[0] };
+  const c = limitConfigs(model, 'wall')[0];
+  const s = { ...defaultState(), model, width: c.w[0], depth: c.d[0] };
   return calcPrice(s).low;
 }
 function priceText(low, high) { return `${t('price.prefix')} ${fmtInt(low)} – ${fmtInt(high)} €`; }
@@ -1182,12 +1255,14 @@ function selfTest() {
   const s = { ...defaultState(), lang: 'de', model: 'varia', mount: 'wall', width: 400, depth: 300,
     sides: { left: 'zip', right: 'zip', front: 'open', back: 'open' },
     options: { led: true, heaters: 0, sensor: true, smarthome: false, solar: false, lightband: false } };
-  const r = calcPrice(s);
+  const r = calcPrice(s, REFERENCE_PRICES);              // Formel gegen das Briefing prüfen
   const prevLang = state.lang; state.lang = 'de';
   const txt = priceText(r.low, r.high);
+  const cur = calcPrice(s);                              // dieselbe Konfiguration mit aktuellen Preisen
+  const curTxt = priceText(cur.low, cur.high);
   state.lang = prevLang;
   const ok = r.P === 25650 && txt === 'ca. 23.500 – 28.000 €';
-  window.__CG_SELFTEST__ = { ok, P: r.P, text: txt };
+  window.__CG_SELFTEST__ = { ok, P: r.P, text: txt, currentPrices: { P: cur.P, text: curTxt } };
   if (!ok) console.error('[pricing] Selbsttest FEHLGESCHLAGEN', r, txt);
   else if (DEBUG) console.info('[pricing] Selbsttest ok:', r.P, txt);
   return ok;
@@ -1499,14 +1574,11 @@ const Scene3D = (() => {
 
   /* ---------- Szene je Konfiguration ---------- */
   function postPositions(s, M, W, D) {
-    const pw = M.post, xs = [-W / 2 + pw / 2, W / 2 - pw / 2];
-    if (s.width > MID_POST_FROM) xs.splice(1, 0, 0);
+    const pw = M.post, plan = postPlan(s), xs = [-W / 2 + pw / 2, W / 2 - pw / 2];
+    if (plan.midW) xs.splice(1, 0, 0);
     const pos = xs.map(x => ({ x, z: D - pw / 2, back: false }));
-    if (s.mount === 'free') {
-      xs.forEach(x => pos.push({ x, z: pw / 2, back: true }));
-      const midDepth = M.sixPostsFromDepth ? s.depth > M.sixPostsFromDepth : s.depth > MID_POST_FROM;
-      if (midDepth) [-W / 2 + pw / 2, W / 2 - pw / 2].forEach(x => pos.push({ x, z: D / 2, mid: true }));
-    }
+    if (s.mount === 'free') xs.forEach(x => pos.push({ x, z: pw / 2, back: true }));
+    if (plan.midD) [-W / 2 + pw / 2, W / 2 - pw / 2].forEach(x => pos.push({ x, z: D / 2, mid: true }));
     return pos;
   }
 
@@ -1533,7 +1605,6 @@ const Scene3D = (() => {
       pg.add(box(W, fh, pw, mats.frame, 0, H + fh / 2, D - pw / 2));                       // vorne
       pg.add(box(W, fh, wall ? wallOff : pw, mats.frame, 0, H + fh / 2, wall ? wallOff / 2 : pw / 2)); // hinten / Wandträger
       [-1, 1].forEach(sx => pg.add(box(pw, fh, D - zIn - pw, mats.frame, sx * (W / 2 - pw / 2), H + fh / 2, (zIn + D - pw) / 2)));
-      if (s.width > MID_POST_FROM && M.type === 'bio') pg.add(box(pw * 0.8, fh, D - zIn - pw, mats.frame, 0, H + fh / 2, (zIn + D - pw) / 2));
     } else {
       pg.add(box(W, fh, pw, mats.frame, 0, H + fh / 2, D - pw / 2));                       // Rinne vorne
       pg.add(box(W, fh, wall ? wallOff : pw, mats.frame, 0, H + rise + fh / 2, wall ? wallOff / 2 : pw / 2));
@@ -1670,36 +1741,39 @@ const Scene3D = (() => {
       pg.add(box(W - 2 * pw, fh * 0.6, 0.06, mats.frame, 0, H + fh / 2, zIn + lb + 0.03));
       z0 = zIn + lb + 0.06;
     }
-    const sections = s.width > MID_POST_FROM ? 2 : 1;
-    const innerW = W - 2 * pw - (sections === 2 ? pw * 0.8 : 0);
-    const len = innerW / sections - 0.02;
-    const innerD = D - pw - z0;
+    // Lamellen parallel zur Front (Standard) oder – bei Breite > LOUVER_SPAN – quer dazu (seitliche Ausführung)
+    const alongZ = s.width > LOUVER_SPAN;
+    const innerW = W - 2 * pw, innerD = D - pw - z0;
     const pitch = 0.2;
-    const n = Math.max(1, Math.floor(innerD / pitch));
-    const off = z0 + (innerD - n * pitch) / 2 + pitch / 2;
+    const len = (alongZ ? innerD : innerW) - 0.02;
+    const span = alongZ ? innerW : innerD;
+    const n = Math.max(1, Math.floor(span / pitch));
+    const off = (span - n * pitch) / 2 + pitch / 2;
     const items = [];
-    for (let sct = 0; sct < sections; sct++) {
-      const cx = sections === 1 ? 0 : (sct === 0 ? -1 : 1) * (len / 2 + pw * 0.4 + 0.01);
-      for (let i = 0; i < n; i++) items.push({ x: cx, y: H + fh * 0.55, z: off + i * pitch });
+    for (let i = 0; i < n; i++) {
+      items.push(alongZ ? { x: -innerW / 2 + off + i * pitch, y: H + fh * 0.55, z: z0 + innerD / 2 }
+                        : { x: 0, y: H + fh * 0.55, z: z0 + off + i * pitch });
     }
-    const geo = new T.BoxGeometry(len, 0.03, 0.19);
+    const geo = alongZ ? new T.BoxGeometry(0.19, 0.03, len) : new T.BoxGeometry(len, 0.03, 0.19);
     const mesh = new T.InstancedMesh(geo, mats.roof, items.length);
     mesh.castShadow = true; mesh.frustumCulled = false;
     pg.add(mesh);
     let solar = null;
     if (M.solar) {
-      tex.solar.repeat.set(len / 0.17, 1);
-      solar = new T.InstancedMesh(new T.BoxGeometry(len - 0.04, 0.006, 0.17), mats.solar, items.length);
+      if (alongZ) tex.solar.repeat.set(1, len / 0.17); else tex.solar.repeat.set(len / 0.17, 1);
+      solar = new T.InstancedMesh(alongZ ? new T.BoxGeometry(0.17, 0.006, len - 0.04) : new T.BoxGeometry(len - 0.04, 0.006, 0.17), mats.solar, items.length);
       solar.frustumCulled = false; solar.visible = !!s.options.solar;
       pg.add(solar);
     }
-    refs.louvers = { mesh, solar, items };
+    refs.louvers = { mesh, solar, items, alongZ };
   }
   let _mat, _mat2, _off, _q, _p, _sc, _e;
   function setLouverMatrices(deg) {
     const L = refs.louvers; if (!L) return;
     if (!_mat) { _mat = new T.Matrix4(); _mat2 = new T.Matrix4(); _off = new T.Matrix4().makeTranslation(0, 0.018, 0); _q = new T.Quaternion(); _p = new T.Vector3(); _sc = new T.Vector3(1, 1, 1); _e = new T.Euler(); }
-    _e.set(-T.MathUtils.degToRad(deg), 0, 0); _q.setFromEuler(_e);
+    const r = T.MathUtils.degToRad(deg);
+    if (L.alongZ) _e.set(0, 0, r); else _e.set(-r, 0, 0);
+    _q.setFromEuler(_e);
     L.items.forEach((it, i) => {
       _p.set(it.x, it.y, it.z); _mat.compose(_p, _q, _sc);
       L.mesh.setMatrixAt(i, _mat);
@@ -2535,7 +2609,7 @@ const UI = (() => {
     els.nextLbl.textContent = state.step === 8 ? t('ui.getQuote') : t('ui.next');
     els.nextBtn.setAttribute('aria-disabled', String(state.step === 1 && !state.purpose));
     els.priceLabel.textContent = t('price.label');
-    els.demoBadge.hidden = !(SHOW_DEMO_BADGE && /demo/.test(PRICES.pricesVersion));
+    els.demoBadge.hidden = !(SHOW_DEMO_BADGE && /demo|schaetzung/.test(PRICES.pricesVersion));
     els.demoBadge.textContent = t('ui.demoPrices');
     els.priceNote.textContent = PRICE_MODE === 'from' ? t('price.fromNote') : priceLocked() ? t('price.blurNote') : t('price.note');
     els.priceValue.classList.toggle('locked', priceLocked());
@@ -2603,7 +2677,7 @@ const UI = (() => {
       <p style="margin-top:12px"><button type="button" class="linkbtn" data-act="sunOpen" data-fk="sunOpen">${icon('sunpath')}${esc(t('s2.sunLink'))}</button></p>`,
 
     3: () => {
-      const L = limitsFor(state.model, state.mount);
+      const L = limitsFor(state.model, state.mount, state.width, state.depth);
       const dim = (k, lim, label) => `
         <div class="dim">
           <div class="dim-row"><label for="${k}Num">${esc(label)}</label>
@@ -2616,7 +2690,8 @@ const UI = (() => {
         ${dim('width', L.w, t('s3.width'))}
         ${dim('depth', L.d, t('s3.depth'))}
         <div class="area"><span>${esc(t('s3.area'))}</span><strong id="areaVal"></strong></div>
-        <p class="note">${esc(t('s3.limits', { model: modelLabel(state.model), mount: t('mount.' + state.mount), w: `${fmtM(L.w[0])}–${fmtM(L.w[1])}`, d: `${fmtM(L.d[0])}–${fmtM(L.d[1])}` }))}</p>
+        <p class="note">${esc(t('s3.limits', { model: modelLabel(state.model), mount: t('mount.' + state.mount),
+          sizes: limitConfigs(state.model, state.mount).map(c => `${fmtRange(c.w)} × ${fmtRange(c.d)}`).join(` ${t('s3.or')} `) }))}</p>
         <div class="hint" id="dimHint" hidden></div>`;
     },
 
@@ -2632,8 +2707,9 @@ const UI = (() => {
           ${ROOF_TYPES[state.roofType].map(k => {
             const mt = t('models.' + k);
             const L = limitsFor(k, state.mount);
-            const fits = state.width >= L.w[0] && state.width <= L.w[1] && state.depth >= L.d[0] && state.depth <= L.d[1];
-            const sim = { ...state, model: k, width: clamp(state.width, L.w[0], L.w[1]), depth: clamp(state.depth, L.d[0], L.d[1]),
+            const fits = fitsModel(k, state.mount, state.width, state.depth);
+            const fit = fitLimits(k, state.mount, state.width, state.depth);
+            const sim = { ...state, model: k, width: fit.w, depth: fit.d,
               options: { ...state.options, solar: state.options.solar && MODELS[k].solar, lightband: state.options.lightband && MODELS[k].lightband } };
             const pr = PRICE_MODE === 'from' ? fromPrice(k) : calcPrice(sim).low;
             return `<button type="button" class="model-card" data-act="model" data-val="${k}" data-fk="model-${k}" aria-pressed="${state.model === k}">
@@ -2642,7 +2718,7 @@ const UI = (() => {
               <div class="mc-name">${esc(mt.name)}</div>
               <div class="mc-benefit">${esc(mt.benefit)}</div>
               <div class="mc-foot"><span class="mc-price">${tMoney('ui.from', pr)}</span>
-                ${fits ? '' : `<span class="mc-fit">${esc(t('s4.fit', { w: fmtM(L.w[1]), d: fmtM(L.d[1]) }))}</span>`}</div>
+                ${fits ? '' : `<span class="mc-fit">${esc(t('s4.fit', { w: fmtM(fit.w), d: fmtM(fit.d) }))}</span>`}</div>
             </button>`;
           }).join('')}
         </div>`;
@@ -2671,7 +2747,7 @@ const UI = (() => {
         ${activeSides(state).map(k => {
           const len = sideLengthCm(state, k);
           const v = state.sides[k];
-          const cost = v === 'zip' ? len / 100 * PRICES.zipPerM : v === 'glass' ? len / 100 * PRICES.glassPerM : 0;
+          const cost = sideCost(state, k);
           return `<div class="side-row" data-side-row="${k}">
             <div class="side-head"><strong>${esc(t('side.' + k))}</strong><span>${fmtM(len)}</span><span class="side-price">${cost ? '+ ' + moneyHTML(Math.round(cost)) : ''}</span></div>
             <div class="seg" role="group" aria-label="${esc(t('side.' + k))}">
@@ -2696,7 +2772,7 @@ const UI = (() => {
           <span class="switch-hit"><button type="button" class="switch" role="switch" aria-checked="${!!o[key] && enabled}" aria-labelledby="opt-${key}" data-act="toggle" data-opt="${key}" data-fk="opt-${key}" ${enabled ? '' : 'disabled'}></button></span>
         </div>`;
       return `${head(7)}
-        ${row('led', PRICES.led, true)}
+        ${row('led', ledPrice(state), true)}
         <div class="opt-row">
           <div class="opt-text"><strong id="opt-heaters">${esc(t('s7.heaters.t'))}</strong><span>${esc(t('s7.heaters.d'))}</span><em>${tMoney('s7.heaters.each', PRICES.heaterEach)}</em></div>
           <div class="stepper" role="group" aria-labelledby="opt-heaters">
@@ -2707,7 +2783,7 @@ const UI = (() => {
         </div>
         ${row('sensor', PRICES.sensor, true)}
         ${row('smarthome', PRICES.smarthome, true)}
-        ${M.type === 'bio' ? row('solar', PRICES.solar, M.solar, t('s7.solar.off')) : ''}
+        ${M.type === 'bio' ? row('solar', Math.round(solarPrice(state)), M.solar, t('s7.solar.off')) : ''}
         ${M.lightband && state.mount === 'wall' ? row('lightband', Math.round(state.width / 100 * PRICES.lightbandPerM), true) : ''}`;
     },
 
@@ -2827,22 +2903,35 @@ const UI = (() => {
       ['width', 'depth'].forEach(k => {
         const num = $(`#${k}Num`), rng = $(`#${k}Range`), msg = $(`#${k}Msg`);
         if (!num) return;
+        const lim = limitsFor(state.model, state.mount, state.width, state.depth)[k === 'width' ? 'w' : 'd'];
+        // Bereich hängt vom anderen Maß ab (z. B. Varia: 7,20 m breit nur bis 4,50 m tief)
+        if (+rng.min !== lim[0] || +rng.max !== lim[1]) {
+          rng.min = num.min = lim[0]; rng.max = num.max = lim[1];
+          const mm = rng.nextElementSibling; if (mm) mm.innerHTML = `<span>${fmtM(lim[0])}</span><span>${fmtM(lim[1])}</span>`;
+        }
         if (document.activeElement !== num) num.value = state[k];
         rng.value = state[k]; setRangeFill(rng);
         msg.textContent = state.ui.dimMsg[k] || '';
         msg.hidden = !state.ui.dimMsg[k];
       });
       $('#areaVal').textContent = fmtArea(state.width, state.depth);
-      const L = limitsFor(state.model, state.mount);
-      const atMax = state.width >= L.w[1] || state.depth >= L.d[1] || !!state.ui.dimWanted;
+      const L = limitsFor(state.model, state.mount, state.width, state.depth);
+      const E = limitsFor(state.model, state.mount);                       // Gesamthülle aller Ausführungen
+      const atW = state.width >= L.w[1], atD = state.depth >= L.d[1];
       const hint = $('#dimHint');
-      if (atMax) {
-        const want = state.ui.dimWanted || { w: state.width + (state.width >= L.w[1] ? 10 : 0), d: state.depth + (state.depth >= L.d[1] ? 10 : 0) };
+      const parts = [];
+      // Andere Ausführung erlaubt mehr: z. B. breiter, wenn weniger tief
+      if (atW && L.w[1] < E.w[1]) { const c = limitConfigs(state.model, state.mount).find(c => c.w[1] === E.w[1]); parts.push(`<p>${esc(t('s3.altWide', { w: fmtM(c.w[1]), d: fmtM(c.d[1]) }))}</p>`); }
+      if (atD && L.d[1] < E.d[1]) { const c = limitConfigs(state.model, state.mount).find(c => c.d[1] === E.d[1]); parts.push(`<p>${esc(t('s3.altDeep', { d: fmtM(c.d[1]), w: fmtM(c.w[1]) }))}</p>`); }
+      if ((atW && L.w[1] >= E.w[1]) || (atD && L.d[1] >= E.d[1]) || state.ui.dimWanted) {
+        const want = state.ui.dimWanted || { w: state.width + (atW ? 10 : 0), d: state.depth + (atD ? 10 : 0) };
         const alt = suggestModel(want.w, want.d);
-        hint.innerHTML = `<p>${esc(t('s3.bigger'))}</p>${alt ? `<p>${esc(t('s3.suggest', { model: modelLabel(alt), w: fmtM(limitsFor(alt, state.mount).w[1]), d: fmtM(limitsFor(alt, state.mount).d[1]) }))}</p>
-          <button type="button" class="linkbtn" data-act="model" data-val="${alt}" data-fk="suggest">${esc(t('s3.choose', { model: modelLabel(alt) }))} ${icon('next')}</button>` : ''}`;
+        parts.push(`<p>${esc(t('s3.bigger'))}</p>`);
+        if (alt) parts.push(`<p>${esc(t('s3.suggest', { model: modelLabel(alt) }))}</p>
+          <button type="button" class="linkbtn" data-act="model" data-val="${alt}" data-fk="suggest">${esc(t('s3.choose', { model: modelLabel(alt) }))} ${icon('next')}</button>`);
       }
-      hint.hidden = !atMax;
+      if (parts.length) hint.innerHTML = parts.join('');
+      hint.hidden = !parts.length;
     }
     if (state.step === 2) {
       document.querySelectorAll('[data-act="azimuth"]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.val === state.azimuth)));
@@ -2861,7 +2950,7 @@ const UI = (() => {
 
   function suggestModel(w, d) {
     const order = [...ROOF_TYPES[MODELS[state.model].type], ...Object.keys(MODELS)];
-    return order.find(k => k !== state.model && (() => { const L = limitsFor(k, state.mount); return w <= L.w[1] && d <= L.d[1] && (L.w[1] > limitsFor(state.model, state.mount).w[1] || L.d[1] > limitsFor(state.model, state.mount).d[1]); })()) || null;
+    return order.find(k => k !== state.model && fitsModel(k, state.mount, w, d)) || null;
   }
 
   function setRangeFill(r) {
@@ -3043,9 +3132,9 @@ const UI = (() => {
       const el = e.target;
       if (el.dataset.dim) {
         const k = el.dataset.dim, v = parseInt(el.value, 10);
-        const L = limitsFor(state.model, state.mount)[k === 'width' ? 'w' : 'd'];
+        const w = k === 'width' ? v : state.width, d = k === 'depth' ? v : state.depth;
         if (el.dataset.kind === 'range') { setRangeFill(el); setState({ [k]: v, ui: { dimMsg: { ...state.ui.dimMsg, [k]: '' }, dimWanted: null } }); }
-        else if (v >= L[0] && v <= L[1]) setState({ [k]: v, ui: { dimMsg: { ...state.ui.dimMsg, [k]: '' }, dimWanted: null } });
+        else if (fitsModel(state.model, state.mount, w, d)) setState({ [k]: v, ui: { dimMsg: { ...state.ui.dimMsg, [k]: '' }, dimWanted: null } });
         return;
       }
       if (el.id === 'ralInput') { state.customRal = el.value.slice(0, 20); scheduleHash(); return; }
@@ -3062,14 +3151,22 @@ const UI = (() => {
     pb.addEventListener('change', e => {
       const el = e.target;
       if (el.dataset.dim && el.dataset.kind === 'num') {
-        const k = el.dataset.dim, L = limitsFor(state.model, state.mount)[k === 'width' ? 'w' : 'd'];
-        let v = parseInt(el.value, 10);
+        const k = el.dataset.dim, dk = k === 'width' ? 'w' : 'd';
+        const E = limitsFor(state.model, state.mount)[dk];                   // Gesamthülle
+        const v = parseInt(el.value, 10);
         if (isNaN(v)) { el.value = state[k]; return; }
+        const want = { w: k === 'width' ? v : state.width, d: k === 'depth' ? v : state.depth };
         let msg = '', wanted = null;
-        if (v > L[1]) { msg = t('s3.max', { max: fmtM(L[1]) }); wanted = { w: k === 'width' ? v : state.width, d: k === 'depth' ? v : state.depth }; v = L[1]; }
-        if (v < L[0]) { msg = t('s3.min', { min: fmtM(L[0]) }); v = L[0]; }
-        el.value = v;
-        setState({ [k]: v, ui: { dimMsg: { ...state.ui.dimMsg, [k]: msg }, dimWanted: wanted } });
+        if (v > E[1]) { msg = t('s3.max', { max: fmtM(E[1]) }); wanted = want; }
+        if (v < E[0]) msg = t('s3.min', { min: fmtM(E[0]) });
+        // gewünschtes Maß möglichst halten, notfalls das andere Maß anpassen (andere Ausführung)
+        const f = fitLimits(state.model, state.mount, want.w, want.d, dk);
+        const other = k === 'width' ? 'depth' : 'width';
+        if (!msg && f[other === 'width' ? 'w' : 'd'] !== state[other]) {
+          msg = t('s3.otherAdjusted', { dim: t('s3.' + other), val: fmtM(f[other === 'width' ? 'w' : 'd']) });
+        }
+        el.value = f[dk];
+        setState({ width: f.w, depth: f.d, ui: { dimMsg: { ...state.ui.dimMsg, [k]: msg }, dimWanted: wanted } }, { quiet: true });
         return;
       }
       Lead.onInput(e.target);
@@ -3254,11 +3351,7 @@ const Lead = (() => {
   function buildLead() {
     const s = state, p = calcPrice(s), M = MODELS[s.model], mt = I18N[s.lang].models[s.model];
     const W = s.width / 100, D = s.depth / 100;
-    const posts = (() => {
-      let n = s.width > MID_POST_FROM ? 3 : 2;
-      if (s.mount === 'free') { n *= 2; if (M.sixPostsFromDepth ? s.depth > M.sixPostsFromDepth : s.depth > MID_POST_FROM) n += 2; }
-      return n;
-    })();
+    const posts = postPlan(s).count;
     const brand = mt.brand.split(' · ')[0];
     const colorOut = (k) => ({ key: k, code: k === 'custom' ? (s.customRal || null) : COLORS[k].ral, label: I18N[s.lang].s5.colors[k] });
     return {

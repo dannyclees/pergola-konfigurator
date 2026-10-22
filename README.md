@@ -8,9 +8,9 @@ Alle Einstellungen stehen oben im `<script>`-Block unter **1. CONFIG**.
 
 | Was | Wo | Hinweis |
 |---|---|---|
-| Preise | `const PRICES = { … }` | Grundpreis + €/m² je Modell, Optionen, Montage, Spanne (`rangeLow`/`rangeHigh`), Rundung. Vor dem Livegang `pricesVersion` ändern, dann verschwindet das Etikett „Demo-Preise“ (oder `SHOW_DEMO_BADGE = false`). |
+| Preise | `const PRICES = { … }` | Grundpreis + €/m² je Modell, Optionen, Montage, Spanne (`rangeLow`/`rangeHigh`), Rundung. Zurzeit Schätzwerte aus der Marktrecherche (siehe unten). Sobald echte Preise drinstehen, `pricesVersion` ändern (ohne „schaetzung“), dann verschwindet das Etikett „Demo-Preise“. |
 | Preisanzeige | `const PRICE_MODE` | `'blur'` (Standard): alle Preise unscharf, freigeschaltet erst nach dem Absenden der Anfrage. Die Freischaltung bleibt im Browser gespeichert. `'range'`: Spanne live sichtbar. `'from'`: nur „ab“-Preis. Im Blur-Modus stehen im Quelltext der Seite nur Platzhalterziffern, nie der echte Preis. |
-| Maßgrenzen, Lamellenwinkel, Solar | `const MODELS = { … }` | Grenzen in cm je Montageart. |
+| Maßgrenzen, Pfosten, Lamellenwinkel, Solar | `const MODELS = { … }` | Je Montageart eine Liste erlaubter Bereiche in cm (z. B. Varia Wandanbau 4,50 × 7,20 m **oder** 7,20 × 4,50 m). `midW`/`midD`: ab welcher Breite/Tiefe zusätzliche Pfosten kommen. |
 | Empfehlung je Nutzungszweck | `const RECOMMEND` | |
 | Farben | `const COLORS` | `hex` = Darstellung in 3D und auf dem Farbchip. |
 | Referenzen | `const REFERENCES` | `image: 'https://…/foto.jpg'` eintragen, dann ersetzt das Foto die Platzhalterzeichnung. Texte stehen in `I18N.*.s8.refs`. |
@@ -65,11 +65,38 @@ Meta CAPI braucht einen Server: über den Webhook (Make/Zapier) oder GTM Server-
 - **Nutzungsregeln:** Nominatim erlaubt höchstens 1 Anfrage pro Sekunde. Gesucht wird deshalb nur auf Klick, mit Sperre. Bei hohem Volumen einen eigenen oder kommerziellen Geocoder eintragen (`Geo`-Modul). Der Quellenhinweis „© OpenStreetMap-Mitwirkende“ muss sichtbar bleiben.
 - **Im Lead:** `configuration.site` (Koordinaten, Adresse) und `configuration.orientation` (Azimut, Quelle). Im Teilen-Link stehen nur auf 3 Nachkommastellen gerundete Koordinaten (ca. 100 m), keine Adresse.
 
+## Preisquellen (Schätzwerte, Stand Oktober 2026)
+
+Gibus und TS Aluminium veröffentlichen keine Listenpreise. Die Werte sind aus Händlerpreisen und Kalkulatoren abgeleitet (DE/IT/BE/UK, inkl. MwSt.) und am oberen Segment kalibriert. Die Quellen konnten nur über Suchauszüge geprüft werden; Stichproben im Browser lohnen sich.
+
+| Position | Wert | Grundlage |
+|---|---|---|
+| Gibus Joy | 6.500 € + 450 €/m² | Joy 2 × 2,1 m freistehend ca. 8.640 € (terrassendach-direkt.de Kalkulator); Solona „ab 11.999 €“ |
+| Gibus Twist | 8.500 € + 500 €/m² | Twist 2 × 2,1 m ca. 11.330 € (terrassendach-direkt.de); Med Twist 4 × 3,5 m Liste 19.600 € + MwSt. (borgognogroup.com) |
+| Gibus Varia | 10.500 € + 550 €/m² | Varia 2 × 2 m ca. 14.200 € (terrassendach-direkt.de); Varia 3 × 3 m ab 17.625 € (mueheoutdoorliving.de); Gibus 5 × 4 m Wandanbau ca. 22.300 € inkl. Montage (pina-design.de) |
+| TS Aluminium Lamellendach | 5.500 € + 600 €/m² | Schätzung: Branchenwerte Lamellendach 3 × 3 m ca. 11.600 €, 3 × 5 m ca. 15.700 € inkl. Montage (vario-kielgast.de) |
+| TS Aluminium Glasdach | 3.000 € + 500 €/m² | Schätzung: Alu-Glasdach 4 × 3 m 7.800–14.500 € inkl. Montage (Fachbetriebe AT/DE) |
+| Gibus Med Room | 7.000 € + 350 €/m² | Schätzung: Med Room Wandanbau ca. 11.730 € (suntec-shop.de, Maß unbekannt) |
+| Markilux pergola stretch | 16.500 € + 300 €/m² | UVP ab 19.500 € für 3,50 × 2,57 m ohne Montage (pergola-ratgeber.de, stoffdach-sonnenschutz.de) |
+| Freistehend | + 1.500 € | 2 zusätzliche Pfosten mit Entwässerung |
+| ZIP-Screen | 800 € je Seite + 350 €/lfm | Renson Fixscreen ab 2.189 €; Belgien 1.200–2.500 € je Seite (ainhpro.be) |
+| Glas-Schiebewand | 950 €/lfm | 799 €/m inkl. Montage (glasschiebewaende-wille.de) bis 3.000–6.000 € je Seite |
+| LED | 1.200 € (bis 15 m²), 1.800 € darüber | Renson Lineo ab 990 €, indirekte LED ab 1.500 € |
+| Heizstrahler | 1.100 €/Stück | Heatscope Spot 769–959 € plus Elektroanschluss |
+| Sensor / Smart Home | 450 € / 400 € | Renson Regensensor 253–335 €; Somfy TaHoma 150–205 € plus Einrichtung |
+| Solar-Lamellen | 1.500 € + 350 €/m² | Schätzung, Gibus nennt keinen Aufpreis |
+| Sonderfarbe | + 10 %, mind. 500 € | Händlerangaben 8–15 % |
+| Lieferung und Montage | 1.550 € + 50 €/m² | Montage 800–2.500 € je nach Größe (Ratgeber, Mildenberger), plus Lieferung LU/BE |
+
+Kontrollrechnung: Varia 4 × 3 m Wandanbau mit 2 ZIP-Seiten à 3 m, LED und Sensor ergibt 24.600 € und damit „ca. 22.500 – 27.000 €“. Zum Vergleich: Renson Camargue in ähnlicher Ausstattung nach Händlerpreisen ca. 26.900 €.
+
+MwSt.: Die Quellen rechnen meist mit 19 % (DE). Luxemburg hat 17 % (Preise ca. 1,7 % niedriger), Belgien 21 %. Ob in Belgien für Pergolen der ermäßigte Satz gilt, bitte prüfen.
+
 ## Akzeptanzkriterien
 
-- [x] Kontrollbeispiel ergibt exakt 25.650 € und „ca. 23.500 – 28.000 €“. Ein Selbsttest beim Laden prüft das, Ergebnis in `window.__CG_SELFTEST__`.
+- [x] Kontrollbeispiel ergibt mit den Briefing-Werten exakt 25.650 € und „ca. 23.500 – 28.000 €“. Ein Selbsttest beim Laden prüft die Formel mit diesen Referenzwerten (`REFERENCE_PRICES`), Ergebnis in `window.__CG_SELFTEST__`.
 - [x] Jede Auswahl ändert 3D-Modell und Preis ohne Neuladen. Gemessen: ca. 16 ms von Klick bis fertigem Update (Software-Renderer).
-- [x] Maßgrenzen gelten je Modell und Montageart. Zu große Eingaben werden begrenzt, mit Hinweis „Module koppeln“ und einem passenden Alternativmodell.
+- [x] Maßgrenzen gelten je Modell und Montageart, inklusive der zwei Gibus-Ausführungen im Wandanbau. Zu große Eingaben werden begrenzt, mit Hinweis auf die andere Ausführung, „Module koppeln“ oder ein passendes Alternativmodell.
 - [x] Solar nur bei Twist und Varia, sonst ausgegraut mit Hinweis.
 - [x] Lamellen drehen sich live (in Schritt 4 einmal automatisch auf und zu), ZIP-Screens und Glaswände fahren animiert.
 - [x] Kein horizontales Scrollen bei 375 px Breite (getestet in Chromium mit Touch-Emulation). Auf echten iPhones und Android-Geräten vor dem Livegang testen.
@@ -79,8 +106,8 @@ Meta CAPI braucht einen Server: über den Webhook (Make/Zapier) oder GTM Server-
 
 ## Offene Punkte vor dem Livegang
 
-1. Echte Preise und Margen eintragen, Preismodus festlegen (`blur` / `range` / `from`).
-2. Maßgrenzen der Modelle außer Varia beim Inhaber bestätigen.
+1. Echte Preise und Margen eintragen (ersetzen die Schätzwerte), Preismodus festlegen (`blur` / `range` / `from`).
+2. Maßgrenzen beim Inhaber bestätigen, vor allem Med Room, TS-Glasdach und die Mindesttiefe der Markilux stretch.
 3. Exakte Showroom-Koordinaten in `DEFAULT_SITE`.
 4. Webhook (Make/Zapier/n8n) für die E-Mail an info@cgatelier.lu und das CRM einrichten.
 5. Inter selbst hosten (DSGVO) und Tracking an das Cookie-Banner der Website koppeln.
