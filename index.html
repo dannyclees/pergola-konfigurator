@@ -242,16 +242,32 @@ input[type="range"]:focus-visible { outline-offset: 0; }
 .type-desc { margin: 12px 0 16px; font-size: 15px; color: var(--muted); }
 .models { display: flex; flex-direction: column; gap: 12px; }
 .model-card {
-  position: relative; display: block; width: 100%; text-align: left; padding: 16px 16px 14px; background: var(--card);
-  border: 1px solid var(--line); border-radius: var(--radius); transition: border-color .2s, background .2s;
+  position: relative; display: block; width: 100%; text-align: left; padding: 0; background: var(--card); overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--radius); transition: border-color .2s, background .2s, transform .2s;
 }
+.model-card > span:not(.check) { display: block; }
 .model-card:hover { border-color: #C9C3BA; }
+.mc-body { display: flex !important; gap: 14px; align-items: center; padding: 14px 16px 0; }
+.mc-art { flex: 0 0 132px; height: 92px; overflow: hidden; border-radius: 10px; background: #F1EEE9; display: flex; align-items: center; justify-content: center; transition: background .2s; }
+.mc-art svg, .mc-art img { width: 100%; height: 100%; display: block; }
+.mc-art img { object-fit: cover; animation: artIn .35s ease both; }
+@keyframes artIn { from { opacity: 0; } to { opacity: 1; } }
+.model-card[aria-pressed="true"] .mc-art { background: #E7DDD1; }
+.mc-main { min-width: 0; display: block; }
 .mc-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-right: 32px; }
 .mc-brand { font-size: 13px; color: var(--muted); font-weight: 500; letter-spacing: .02em; }
 .badge { font-size: 12px; font-weight: 600; color: var(--accent-ink); background: var(--accent); padding: 3px 8px; border-radius: 10px; }
-.mc-name { font-size: 19px; font-weight: 600; margin: 4px 0 2px; }
-.mc-benefit { font-size: 15px; color: var(--muted); }
-.mc-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: 15px; }
+.mc-name { display: block; font-size: 21px; font-weight: 600; letter-spacing: -.01em; margin: 2px 0 4px; line-height: 1.2; }
+.mc-tier { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: .04em; text-transform: uppercase; }
+.mc-dots { display: inline-flex; gap: 3px; }
+.mc-dots i { width: 14px; height: 4px; border-radius: 2px; background: var(--line); }
+.mc-dots i.on { background: var(--accent); }
+.mc-benefit { font-size: 15px; color: var(--muted); padding: 10px 16px 0; }
+.mc-specs { display: flex !important; flex-wrap: wrap; gap: 6px; padding: 10px 16px 0; }
+.mc-spec { font-size: 13px; line-height: 1.2; padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--text); }
+.model-card[aria-pressed="true"] .mc-spec { border-color: #D9CCBD; background: #FBF8F4; }
+.mc-foot { display: flex !important; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding: 10px 16px 12px; border-top: 1px solid var(--line); font-size: 15px; }
+@media (max-width: 400px) { .mc-art { flex-basis: 108px; height: 76px; } .mc-name { font-size: 19px; } }
 .mc-price { font-weight: 600; font-variant-numeric: tabular-nums; }
 .mc-fit { color: var(--muted); font-size: 13px; }
 
@@ -528,25 +544,26 @@ const TRACKING_REQUIRES_CONSENT = false;
    Quellen: Gibus-Datenblätter über Archiproducts/Architonic/Edilportale, Händler-Kalkulatoren, TS-Aluminium-
    und Markilux-Datenblätter (siehe README). Med Room und TS-Glasdach: Händlerangaben bzw. Schätzung. */
 const MODELS = {
-  joy:         { type: 'bio',     louverMax: 120, solar: false, post: 0.13, beam: 0.25, midW: 610, midD: 610,
+  joy:         { type: 'bio', tier: 1, style: 'slim', louverMax: 120, solar: false, post: 0.13, beam: 0.25, midW: 610, midD: 610,
                  limits: { wall: [{ w: [200, 450], d: [210, 690] }, { w: [200, 710], d: [210, 450] }],
                            free: [{ w: [200, 450], d: [210, 690] }] } },
-  twist:       { type: 'bio',     louverMax: 120, solar: true,  post: 0.15, beam: 0.26, midW: 610, midD: { wall: 610, free: 670 },
+  twist:       { type: 'bio', tier: 2, style: 'bevel', louverMax: 120, solar: true,  post: 0.15, beam: 0.26, midW: 610, midD: { wall: 610, free: 670 },
                  limits: { wall: [{ w: [200, 450], d: [210, 710] }, { w: [200, 710], d: [210, 450] }],
                            free: [{ w: [200, 450], d: [210, 750] }] } },
-  varia:       { type: 'bio',     louverMax: 135, solar: true,  post: 0.17, beam: 0.28, zipIntegrated: true, midW: 600, midD: 600,
+  varia:       { type: 'bio', tier: 3, style: 'groove', louverMax: 135, solar: true,  post: 0.17, beam: 0.28, zipIntegrated: true, midW: 600, midD: 600,
                  limits: { wall: [{ w: [200, 450], d: [200, 720] }, { w: [200, 720], d: [200, 450] }],
                            free: [{ w: [200, 450], d: [200, 720] }] } },
-  ts_lamellen: { type: 'bio',     louverMax: 135, solar: false, post: 0.14, beam: 0.24, lightband: true, midW: 600, midD: 9999,
+  ts_lamellen: { type: 'bio', tier: 2, style: 'cornice', louverMax: 135, solar: false, post: 0.14, beam: 0.24, lightband: true, midW: 600, midD: 9999,
                  limits: { wall: [{ w: [200, 800], d: [200, 450] }], free: [{ w: [200, 800], d: [200, 450] }] } },
-  ts_glas:     { type: 'glass',   post: 0.12, beam: 0.2, midW: 450, midD: 9999,
+  ts_glas:     { type: 'glass', tier: 2, style: 'glass', post: 0.12, beam: 0.2, midW: 450, midD: 9999,
                  limits: { wall: [{ w: [200, 700], d: [200, 500] }], free: [{ w: [200, 700], d: [200, 500] }] } },
-  medroom:     { type: 'retract', post: 0.15, beam: 0.24, midW: 9999, midD: 9999,
+  medroom:     { type: 'retract', tier: 2, style: 'pvc', post: 0.15, beam: 0.24, midW: 9999, midD: 9999,
                  limits: { wall: [{ w: [250, 500], d: [200, 600] }], free: [{ w: [250, 500], d: [200, 600] }] } },
-  stretch:     { type: 'retract', post: 0.125, beam: 0.2, midW: 9999, midD: 9999,
+  stretch:     { type: 'retract', tier: 3, style: 'fabric', post: 0.125, beam: 0.2, midW: 9999, midD: 9999,
                  limits: { wall: [{ w: [201, 700], d: [250, 700] }], free: [{ w: [201, 700], d: [250, 700] }] } }
 };
 const ROOF_TYPES = { bio: ['joy', 'twist', 'varia', 'ts_lamellen'], glass: ['ts_glas'], retract: ['medroom', 'stretch'] };
+/* tier: Positionierung 1 = Einstieg, 2 = Komfort, 3 = Premium · style: Profil-Details in 3D und Zeichnung der Modellkarte */
 /* Lamellen sind max. so lang (cm); breitere Anlagen bekommen quer zur Wand laufende Lamellen */
 const LOUVER_SPAN = 450;
 
@@ -673,7 +690,7 @@ const I18N = {
       note: 'Prix indicatif TTC, pose comprise. Offre ferme après métré gratuit.',
       fromNote: 'La fourchette détaillée vous parvient avec votre devis par e-mail.',
       live: 'Prix indicatif mis à jour : {price}',
-      blurNote: 'Votre prix personnalisé vous est présenté lors de votre conseil gratuit et sans engagement.',
+      blurNote: 'Votre prix personnalisé lors du conseil gratuit.',
       blurHint: 'CG Atelier vous présente votre prix personnellement. Demandez votre conseil à la dernière étape.',
       blurHint8: 'Demandez votre conseil gratuit ci-dessous : vous y recevrez votre prix personnalisé.',
       hiddenSr: 'Prix communiqué lors du conseil'
@@ -744,15 +761,23 @@ const I18N = {
       fit: 'Vos dimensions seront ajustées à {w} × {d}.'
     },
     models: {
-      joy: { brand: 'Gibus · Italie', name: 'Joy', benefit: 'L’entrée de gamme Gibus : compacte, élégante, lames orientables jusqu’à 120°.' },
-      twist: { brand: 'Gibus · Italie', name: 'Twist', benefit: 'Design affirmé, adossée ou autoportante, option lames solaires.' },
-      varia: { brand: 'Gibus · Italie', name: 'Varia', benefit: 'Le haut de gamme : stores ZIP invisibles dans le profilé, lames jusqu’à 135°.' },
-      ts_lamellen: { brand: 'TS Aluminium · Allemagne', name: 'Toit à lames', benefit: 'Fabriqué en Allemagne, combinable avec une bande vitrée côté façade.' },
-      ts_glas: { brand: 'TS Aluminium · Allemagne', name: 'Toit en verre cubique', benefit: 'Style Bauhaus, toit plat légèrement incliné, un maximum de lumière.' },
-      medroom: { brand: 'Gibus · Italie', name: 'Med Room', benefit: 'Toit en PVC étanche, entièrement ouvrable.' },
-      stretch: { brand: 'Markilux · Allemagne', name: 'pergola stretch', benefit: 'Toile tendue pour les grandes surfaces, jusqu’à 7 × 7 m.' }
+      joy: { brand: 'Gibus · Italie', name: 'Joy', benefit: 'L’entrée de gamme Gibus : compacte, élégante, lames orientables jusqu’à 120°.',
+        specs: ['Lames 0–120°', 'Poteaux fins 13 cm', 'ZIP ou verre en option'] },
+      twist: { brand: 'Gibus · Italie', name: 'Twist', benefit: 'Design affirmé, adossée ou autoportante, option lames solaires.',
+        specs: ['Lames 0–120°', 'Lames solaires possibles', 'Jusqu’à 7,50 m de profondeur'] },
+      varia: { brand: 'Gibus · Italie', name: 'Varia', benefit: 'Le haut de gamme : stores ZIP invisibles dans le profilé, lames jusqu’à 135°.',
+        specs: ['ZIP invisible dans le profilé', 'Lames 0–135°', 'Solaire possible', 'Jusqu’à 7,20 m'] },
+      ts_lamellen: { brand: 'TS Aluminium · Allemagne', name: 'Toit à lames', benefit: 'Fabriqué en Allemagne, combinable avec une bande vitrée côté façade.',
+        specs: ['Made in Germany', 'Lames 0–135°', 'Jusqu’à 8 m de large', 'Bande vitrée possible'] },
+      ts_glas: { brand: 'TS Aluminium · Allemagne', name: 'Toit en verre cubique', benefit: 'Style Bauhaus, toit plat légèrement incliné, un maximum de lumière.',
+        specs: ['Lumineux toute l’année', 'Style Bauhaus', 'Jusqu’à 7 m de large'] },
+      medroom: { brand: 'Gibus · Italie', name: 'Med Room', benefit: 'Toit en PVC étanche, entièrement ouvrable.',
+        specs: ['PVC étanche', 'Entièrement ouvrable', 'Jusqu’à 5 × 6 m'] },
+      stretch: { brand: 'Markilux · Allemagne', name: 'pergola stretch', benefit: 'Toile tendue pour les grandes surfaces, jusqu’à 7 × 7 m.',
+        specs: ['Toile tendue', 'Jusqu’à 7 × 7 m', 'Couplable jusqu’à 25 m'] }
     },
     mount: { wall: 'adossée', free: 'autoportante' },
+    tiers: { 1: 'Essentiel', 2: 'Confort', 3: 'Premium' },
     s5: {
       title: 'La couleur de votre pergola',
       sub: 'Laquage poudre mat, résistant aux UV. Structure et toit au choix.',
@@ -849,7 +874,7 @@ const I18N = {
       note: 'Richtpreis inkl. Montage und MwSt. Verbindliches Angebot nach kostenlosem Aufmaß.',
       fromNote: 'Die genaue Preisspanne erhalten Sie mit Ihrem Richtangebot per E-Mail.',
       live: 'Richtpreis aktualisiert: {price}',
-      blurNote: 'Ihren persönlichen Preis erhalten Sie im kostenlosen, unverbindlichen Beratungsgespräch.',
+      blurNote: 'Ihr persönlicher Preis im kostenlosen Beratungsgespräch.',
       blurHint: 'Ihren Preis bespricht CG Atelier persönlich mit Ihnen. Fordern Sie im letzten Schritt Ihre Beratung an.',
       blurHint8: 'Fordern Sie unten Ihre kostenlose Beratung an. Dort erhalten Sie Ihren persönlichen Preis.',
       hiddenSr: 'Preis im Beratungsgespräch'
@@ -920,15 +945,23 @@ const I18N = {
       fit: 'Ihre Maße werden auf {w} × {d} angepasst.'
     },
     models: {
-      joy: { brand: 'Gibus · Italien', name: 'Joy', benefit: 'Der Gibus-Einstieg: kompakt, elegant, Lamellen bis 120° drehbar.' },
-      twist: { brand: 'Gibus · Italien', name: 'Twist', benefit: 'Markantes Design, angebaut oder freistehend, mit Solar-Option.' },
-      varia: { brand: 'Gibus · Italien', name: 'Varia', benefit: 'Premium: ZIP-Screens unsichtbar im Profil, Lamellen bis 135°.' },
-      ts_lamellen: { brand: 'TS Aluminium · Deutschland', name: 'Lamellendach', benefit: 'Made in Germany, kombinierbar mit Glas-Lichtband zur Fassade.' },
-      ts_glas: { brand: 'TS Aluminium · Deutschland', name: 'Glas-Terrassendach kubisch', benefit: 'Bauhaus-Optik, flach geneigt, maximal hell.' },
-      medroom: { brand: 'Gibus · Italien', name: 'Med Room', benefit: 'Regendichtes PVC-Dach, komplett zu öffnen.' },
-      stretch: { brand: 'Markilux · Deutschland', name: 'pergola stretch', benefit: 'Gespanntes Tuch für große Flächen, bis 7 × 7 m.' }
+      joy: { brand: 'Gibus · Italien', name: 'Joy', benefit: 'Der Gibus-Einstieg: kompakt, elegant, Lamellen bis 120° drehbar.',
+        specs: ['Lamellen 0–120°', 'Schlanke Pfosten 13 cm', 'ZIP oder Glas nachrüstbar'] },
+      twist: { brand: 'Gibus · Italien', name: 'Twist', benefit: 'Markantes Design, angebaut oder freistehend, mit Solar-Option.',
+        specs: ['Lamellen 0–120°', 'Solar-Lamellen möglich', 'Bis 7,50 m tief'] },
+      varia: { brand: 'Gibus · Italien', name: 'Varia', benefit: 'Premium: ZIP-Screens unsichtbar im Profil, Lamellen bis 135°.',
+        specs: ['ZIP unsichtbar im Profil', 'Lamellen 0–135°', 'Solar möglich', 'Bis 7,20 m'] },
+      ts_lamellen: { brand: 'TS Aluminium · Deutschland', name: 'Lamellendach', benefit: 'Made in Germany, kombinierbar mit Glas-Lichtband zur Fassade.',
+        specs: ['Made in Germany', 'Lamellen 0–135°', 'Bis 8 m breit', 'Glas-Lichtband möglich'] },
+      ts_glas: { brand: 'TS Aluminium · Deutschland', name: 'Glas-Terrassendach kubisch', benefit: 'Bauhaus-Optik, flach geneigt, maximal hell.',
+        specs: ['Ganzjährig hell', 'Bauhaus-Optik', 'Bis 7 m breit'] },
+      medroom: { brand: 'Gibus · Italien', name: 'Med Room', benefit: 'Regendichtes PVC-Dach, komplett zu öffnen.',
+        specs: ['PVC regendicht', 'Komplett zu öffnen', 'Bis 5 × 6 m'] },
+      stretch: { brand: 'Markilux · Deutschland', name: 'pergola stretch', benefit: 'Gespanntes Tuch für große Flächen, bis 7 × 7 m.',
+        specs: ['Gespanntes Tuch', 'Bis 7 × 7 m je Feld', 'Koppelbar bis 25 m'] }
     },
     mount: { wall: 'Wandanbau', free: 'freistehend' },
+    tiers: { 1: 'Einstieg', 2: 'Komfort', 3: 'Premium' },
     s5: {
       title: 'Die Farbe Ihrer Pergola',
       sub: 'Matte Pulverbeschichtung, UV-beständig. Struktur und Dach getrennt wählbar.',
@@ -1487,6 +1520,7 @@ const Scene3D = (() => {
     mats.plinth = std({ color: '#B8B1A6', roughness: 0.9 });
     mats.coping = std({ color: '#4A4D51', roughness: 0.6, metalness: 0.3 });
     mats.doorFrame = std({ color: '#2F3236', roughness: 0.45, metalness: 0.5 });
+    mats.groove = std({ color: '#121315', roughness: 0.8, metalness: 0.2 });
     mats.doorGlass = std({ color: '#2B3640', roughness: 0.05, metalness: 0.2, emissive: '#E89A55', emissiveIntensity: 0, envMapIntensity: 1.4 });
     mats.doorGlass.userData.envBase = 1.4;
     mats.sofa = std({ color: '#D9D2C7', roughness: 0.95 });
@@ -1603,6 +1637,8 @@ const Scene3D = (() => {
       pg.add(box(W, fh, pw, mats.frame, 0, H + fh / 2, D - pw / 2));                       // Rinne vorne
       pg.add(box(W, fh, wall ? wallOff : pw, mats.frame, 0, H + rise + fh / 2, wall ? wallOff / 2 : pw / 2));
     }
+
+    decorateFrame(M, pg, W, D, zIn, pw, fh, wall);
 
     /* Dach */
     if (M.type === 'bio') buildLouvers(s, M, pg, W, D, zIn, pw, fh);
@@ -1724,6 +1760,32 @@ const Scene3D = (() => {
     applyHighlight();
     controls.minAzimuthAngle = wall ? -1.38 : -Infinity;
     controls.maxAzimuthAngle = wall ? 1.38 : Infinity;
+  }
+
+  /* Modelltypische Profil-Details, damit sich die Modelle auch in 3D unterscheiden:
+     groove (Varia) = Schattenfuge im schweren Profil · cornice (TS) = Gesims · bevel (Twist) = abgeschrägte Unterkante */
+  function decorateFrame(M, pg, W, D, zIn, pw, fh, wall) {
+    const st = M.style, yMid = H + fh * 0.58;
+    const sides = [{ len: W, x: 0, z: D, axis: 'x', out: 1 }];                   // vorne, Außenfläche bei z = D
+    [-1, 1].forEach(sx => sides.push({ len: D - zIn, x: sx * W / 2, z: (zIn + D) / 2, axis: 'z', out: sx }));
+    if (!wall) sides.push({ len: W, x: 0, z: 0, axis: 'x', out: -1 });
+    sides.forEach(e => {
+      const along = (a, b, c) => (e.axis === 'x' ? [a, b, c] : [c, b, a]);
+      if (st === 'groove') {
+        const [w, h, d] = along(e.len + 0.004, 0.022, 0.012);
+        pg.add(box(w, h, d, mats.groove, e.axis === 'x' ? e.x : e.x + e.out * 0.002, yMid, e.axis === 'x' ? e.z + e.out * 0.002 : e.z, false));
+      }
+      if (st === 'cornice') {
+        const [w, h, d] = along(e.len + 0.06, 0.04, 0.05);
+        pg.add(box(w, h, d, mats.frame, e.axis === 'x' ? e.x : e.x + e.out * 0.012, H + fh + 0.02, e.axis === 'x' ? e.z + e.out * 0.012 : e.z));
+      }
+      if (st === 'bevel') {
+        const [w, h, d] = along(e.len, 0.075, 0.075);
+        const b = box(w, h, d, mats.frame, e.axis === 'x' ? e.x : e.x + e.out * 0.012, H + 0.035, e.axis === 'x' ? e.z + e.out * 0.012 : e.z);
+        if (e.axis === 'x') b.rotation.x = Math.PI / 4; else b.rotation.z = Math.PI / 4;
+        pg.add(b);
+      }
+    });
   }
 
   /* Lamellen als InstancedMesh, Drehung um die Längsachse */
@@ -2282,11 +2344,73 @@ const Scene3D = (() => {
     if (fly) flyTo(on ? 'sun' : step);
     lastInteract = performance.now();
   }
+  /* Vorschaubilder für die Modellkarten: jedes Modell mit seinem typischen Merkmal,
+     in aktueller Farbe und (passend gemachter) Größe. Rendert kurz in kleiner Auflösung und stellt danach alles wieder her. */
+  const THUMB_FEATURE = {
+    joy: { louver: 65 },
+    twist: { louver: 0, options: { solar: true } },
+    varia: { louver: 35, zip: ['left', 'right'] },
+    ts_lamellen: { louver: 75, options: { lightband: true } },
+    ts_glas: {},
+    medroom: { extend: 1 },
+    stretch: { extend: 1 }
+  };
+  function makeThumbs(s, models, w = 360, h = 252) {
+    if (!ready || !lastState) return {};
+    const out = {};
+    const real = lastState;
+    const prevPR = renderer.getPixelRatio(), prevSize = renderer.getSize(new T.Vector2());
+    const saved = { louver: anim.louver, extend: anim.extend, sides: JSON.parse(JSON.stringify(anim.sides)) };
+    const cam = new T.PerspectiveCamera(32, w / h, 0.1, 200);
+    const c2 = document.createElement('canvas'); c2.width = w; c2.height = h;
+    const g2 = c2.getContext('2d');
+    renderer.setPixelRatio(1);
+    renderer.setSize(w, h, false);
+    try {
+      for (const k of models) {
+        const f = THUMB_FEATURE[k] || {};
+        const fit = fitLimits(k, s.mount, s.width, s.depth);
+        const ts = JSON.parse(JSON.stringify({ ...s, model: k, width: fit.w, depth: fit.d }));
+        ts.options = { ...ts.options, led: false, heaters: 0, solar: false, lightband: false, ...(f.options || {}) };
+        if (ts.options.lightband && s.mount !== 'wall') ts.options.lightband = false;
+        Object.keys(anim.sides).forEach(side => Object.assign(anim.sides[side], { zip: (f.zip || []).includes(side) ? 1 : 0, glass: 0 }));
+        anim.louver = Math.min(f.louver ?? 0, MODELS[k].louverMax || 0);
+        anim.extend = f.extend ?? 1;
+        lastState = ts;
+        build(ts); applyColors(ts); applyOptions(ts);
+        if (groups.dims) groups.dims.visible = false;
+        if (groups.sunpath) groups.sunpath.visible = false;
+        const W = ts.width / 100, D = ts.depth / 100;
+        const r = 0.5 * Math.sqrt(W * W + D * D + 2.6 * 2.6);
+        const dist = r / Math.sin(T.MathUtils.degToRad(32) / 2) * 0.74;
+        const target = new T.Vector3(0, 1.25, D / 2), az = 0.62, pol = 1.13;
+        cam.position.set(dist * Math.sin(pol) * Math.sin(az), dist * Math.cos(pol), dist * Math.sin(pol) * Math.cos(az)).add(target);
+        cam.lookAt(target);
+        renderer.render(scene, cam);
+        g2.drawImage(renderer.domElement, 0, 0, w, h);
+        out[k] = c2.toDataURL('image/jpeg', 0.85);
+      }
+    } catch (e) {
+      console.warn('[scene] Vorschaubild fehlgeschlagen', e);
+    } finally {
+      lastState = real;
+      anim.louver = saved.louver; anim.extend = saved.extend;
+      Object.keys(anim.sides).forEach(side => Object.assign(anim.sides[side], saved.sides[side]));
+      renderer.setPixelRatio(prevPR);
+      renderer.setSize(prevSize.x, prevSize.y, false);
+      build(real); applyColors(real); applyOptions(real);
+      if (groups.dims) groups.dims.visible = step === 3 && !sunMode;
+      if (groups.sunpath) groups.sunpath.visible = sunMode;
+      renderer.render(scene, camera);
+      dirty = true;
+    }
+    return out;
+  }
   function setLabels(map) { labelsText = map.sides; sceneTexts = map; if (ready) { applyLabels(); pathSig = ''; buildSunPath(); } }
   function setPanelSide(k) { panelSide = k; if (ready) applyHighlight(); }
   function isReady() { return ready; }
 
-  return { init, sync, setStep, setLouver, setExtend, setTime, setDate, setSunMode, setLabels, setPanelSide, isReady };
+  return { init, sync, setStep, setLouver, setExtend, setTime, setDate, setSunMode, setLabels, setPanelSide, makeThumbs, isReady };
 })();
 
 /* =====================================================================
@@ -2686,13 +2810,21 @@ const UI = (() => {
             const sim = { ...state, model: k, width: fit.w, depth: fit.d,
               options: { ...state.options, solar: state.options.solar && MODELS[k].solar, lightband: state.options.lightband && MODELS[k].lightband } };
             const pr = PRICE_MODE === 'from' ? fromPrice(k) : calcPrice(sim).low;
+            const tier = MODELS[k].tier;
             return `<button type="button" class="model-card" data-act="model" data-val="${k}" data-fk="model-${k}" aria-pressed="${state.model === k}">
               ${check}
-              <div class="mc-top"><span class="mc-brand">${esc(mt.brand)}</span>${state.recommended === k && state.purpose ? `<span class="badge">${esc(t('ui.recommended'))}</span>` : ''}</div>
-              <div class="mc-name">${esc(mt.name)}</div>
-              <div class="mc-benefit">${esc(mt.benefit)}</div>
-              <div class="mc-foot"><span class="mc-price">${tMoney('ui.from', pr)}</span>
-                ${fits ? '' : `<span class="mc-fit">${esc(t('s4.fit', { w: fmtM(fit.w), d: fmtM(fit.d) }))}</span>`}</div>
+              <span class="mc-body">
+                <span class="mc-art" aria-hidden="true" data-art="${k}">${thumbCache[thumbKey(k)] ? `<img src="${thumbCache[thumbKey(k)]}" alt="">` : modelArt(k)}</span>
+                <span class="mc-main">
+                  <span class="mc-top"><span class="mc-brand">${esc(mt.brand)}</span>${state.recommended === k && state.purpose ? `<span class="badge">${esc(t('ui.recommended'))}</span>` : ''}</span>
+                  <span class="mc-name">${esc(mt.name)}</span>
+                  <span class="mc-tier"><span class="mc-dots" aria-hidden="true">${[1, 2, 3].map(i => `<i class="${i <= tier ? 'on' : ''}"></i>`).join('')}</span>${esc(t('tiers.' + tier))}</span>
+                </span>
+              </span>
+              <span class="mc-benefit">${esc(mt.benefit)}</span>
+              <span class="mc-specs">${mt.specs.map(x => `<span class="mc-spec">${esc(x)}</span>`).join('')}</span>
+              <span class="mc-foot"><span class="mc-price">${tMoney('ui.from', pr)}</span>
+                ${fits ? '' : `<span class="mc-fit">${esc(t('s4.fit', { w: fmtM(fit.w), d: fmtM(fit.d) }))}</span>`}</span>
             </button>`;
           }).join('')}
         </div>`;
@@ -2763,6 +2895,69 @@ const UI = (() => {
 
     8: () => state.ui.formMode ? Lead.formHTML() : summaryView()
   };
+
+  /* 3D-Vorschaubilder der Modellkarten (aus der laufenden Szene gerendert, je Farbe/Größe zwischengespeichert) */
+  const thumbCache = {};
+  const thumbKey = (k) => [k, state.mount, state.colorFrame, state.colorRoof, state.width, state.depth].join('|');
+  let thumbTimer = 0;
+  function ensureThumbs() {
+    if (state.step !== 4 || viewerState !== 'ready') return;
+    const missing = ROOF_TYPES[state.roofType].filter(k => !thumbCache[thumbKey(k)]);
+    if (!missing.length) return;
+    clearTimeout(thumbTimer);
+    thumbTimer = setTimeout(() => {
+      if (state.step !== 4) return;
+      const keys = Object.fromEntries(missing.map(k => [k, thumbKey(k)]));
+      const res = Scene3D.makeThumbs(state, missing);
+      Object.entries(res).forEach(([k, url]) => {
+        thumbCache[keys[k]] = url;
+        const el = document.querySelector(`[data-art="${k}"]`);
+        if (el && keys[k] === thumbKey(k)) el.innerHTML = `<img src="${url}" alt="">`;
+      });
+    }, 120);
+  }
+
+  /* Modell-Silhouette (Axonometrie, 120 × 80) – Platzhalter, bis das 3D-Vorschaubild fertig ist */
+  function modelArt(k) {
+    const st = MODELS[k].style;
+    const ink = '#2B2D30', top0 = 24, dx = 12, dy = 11;
+    const P = { slim: [5, 3.5], bevel: [8, 4.5], groove: [11, 6], cornice: [8, 4.5], glass: [5, 3.5], pvc: [6, 4], fabric: [4, 3] }[st];
+    const bh = P[0], pw = P[1];
+    const x0 = 14, x1 = 100, y0 = top0;
+    const pts = (a) => a.map(p => p.join(',')).join(' ');
+    let topFill = '#55595E', topExtra = '';
+    // Dachfläche je Typ
+    if (st === 'glass') {
+      topFill = '#D6E3E8';
+      for (let i = 1; i < 4; i++) { const x = x0 + (x1 - x0) * i / 4; topExtra += `<path d="M${x} ${y0}L${x + dx} ${y0 - dy - 3}" stroke="${ink}" stroke-width="1"/>`; }
+    } else if (st === 'pvc' || st === 'fabric') {
+      topFill = st === 'pvc' ? '#E4E0DA' : '#D8CFC2';
+      const n = st === 'pvc' ? 5 : 3;
+      for (let i = 1; i < n; i++) { const tt = i / n, ax = x0 + dx * tt, ay = y0 - dy * tt; topExtra += `<path d="M${ax} ${ay}Q${(ax + x1 + dx * tt) / 2} ${ay + (st === 'pvc' ? 3 : 1.5)} ${x1 + dx * tt} ${ay}" stroke="#8C857B" stroke-width="1" fill="none"/>`; }
+    } else {
+      for (let i = 1; i < 7; i++) { const tt = i / 7; topExtra += `<path d="M${x0 + dx * tt} ${y0 - dy * tt}L${x1 + dx * tt} ${y0 - dy * tt}" stroke="#9CA1A6" stroke-width="1.1"/>`; }
+    }
+    const roofTopY = st === 'glass' ? y0 - dy - 3 : y0 - dy;
+    let svg = `<svg viewBox="0 0 126 80" fill="none" stroke-linejoin="round">
+      <path d="M4 74h118" stroke="#C9C1B5" stroke-width="1.2"/>
+      <rect x="${x1 + dx - pw}" y="${roofTopY + bh}" width="${pw}" height="${74 - 8 - roofTopY - bh}" fill="${ink}" opacity=".55"/>
+      <polygon points="${pts([[x0, y0], [x1, y0], [x1 + dx, roofTopY], [x0 + dx, roofTopY]])}" fill="${topFill}"/>
+      ${topExtra}
+      <polygon points="${pts([[x1, y0], [x1 + dx, roofTopY], [x1 + dx, roofTopY + bh], [x1, y0 + bh]])}" fill="#3A3D41"/>`;
+    // Frontträger je Profil
+    if (st === 'bevel') svg += `<polygon points="${pts([[x0, y0], [x1, y0], [x1, y0 + bh - 3], [x1 - 3, y0 + bh], [x0 + 3, y0 + bh], [x0, y0 + bh - 3]])}" fill="${ink}"/>
+      <path d="M${x0 + 3} ${y0 + bh}L${x1 - 3} ${y0 + bh}" stroke="#7A7F85" stroke-width="1"/>`;
+    else svg += `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${bh}" fill="${ink}"/>`;
+    if (st === 'groove') svg += `<path d="M${x0} ${y0 + bh * 0.58}H${x1}" stroke="#8A8F95" stroke-width="1"/>`;
+    if (st === 'cornice') svg += `<rect x="${x0 - 2}" y="${y0 - 2}" width="${x1 - x0 + 4}" height="2.6" fill="${ink}"/>`;
+    // Pfosten vorne
+    svg += `<rect x="${x0}" y="${y0 + bh}" width="${pw}" height="${74 - y0 - bh}" fill="${ink}"/><rect x="${x1 - pw}" y="${y0 + bh}" width="${pw}" height="${74 - y0 - bh}" fill="${ink}"/>`;
+    // Typisches Merkmal
+    if (st === 'groove') svg += `<rect x="${x0 + pw}" y="${y0 + bh}" width="${x1 - x0 - 2 * pw}" height="${74 - y0 - bh}" fill="${ink}" opacity=".16"/>`;   // ZIP unsichtbar im Profil
+    if (st === 'cornice') svg += `<polygon points="${pts([[x0 + dx * 0.15, y0 - dy * 0.15], [x1 + dx * 0.15, y0 - dy * 0.15], [x1 + dx * 0.3, y0 - dy * 0.3], [x0 + dx * 0.3, y0 - dy * 0.3]])}" fill="#D6E3E8" opacity=".9"/>`;
+    if (st === 'fabric') svg += `<path d="M${x0 + pw} ${y0 + bh + 1}Q${(x0 + x1) / 2} ${y0 + bh + 7} ${x1 - pw} ${y0 + bh + 1}" stroke="#8C857B" stroke-width="1.2"/>`;
+    return svg + '</svg>';
+  }
 
   function summaryRows(withEdit) {
     const s = state, o = s.options;
@@ -2873,6 +3068,7 @@ const UI = (() => {
 
   /* Werte, die sich beim Ziehen ändern, ohne Neuaufbau aktualisieren */
   function syncPanel() {
+    ensureThumbs();
     if (state.step === 3) {
       ['width', 'depth'].forEach(k => {
         const num = $(`#${k}Num`), rng = $(`#${k}Range`), msg = $(`#${k}Msg`);
@@ -3163,6 +3359,7 @@ const UI = (() => {
     els.viewerTop.hidden = st !== 'ready';
     els.app.classList.toggle('no3d', st === 'failed');
     renderChrome();
+    if (st === 'ready') ensureThumbs();
   }
   function onLouverAnim(v) {
     state.view.louver = v;
