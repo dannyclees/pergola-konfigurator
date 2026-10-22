@@ -13,16 +13,18 @@
   header { display: flex; align-items: center; justify-content: space-between; padding: 22px clamp(16px, 5vw, 64px); }
   header strong { letter-spacing: .18em; font-size: 15px; }
   header nav { display: flex; gap: 28px; font-size: 15px; color: var(--muted); }
-  .hero { margin: 0 clamp(16px, 5vw, 64px); border-radius: 24px; min-height: 62vh; padding: clamp(28px, 6vw, 80px);
-    display: flex; flex-direction: column; justify-content: flex-end; color: #fff;
-    background: linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,.45)), linear-gradient(135deg, #6E7B6A 0%, #A7A08F 45%, #C9B79A 100%); }
-  .hero h1 { font-size: clamp(32px, 5vw, 56px); line-height: 1.08; margin: 0 0 14px; max-width: 720px; letter-spacing: -.02em; }
-  .hero p { font-size: 19px; margin: 0 0 28px; max-width: 560px; opacity: .92; }
+  .hero { margin: 0 clamp(16px, 5vw, 64px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 72px);
+    align-items: center; padding: clamp(16px, 4vw, 48px) 0; }
+  .hero h1 { font-size: clamp(32px, 4.6vw, 56px); line-height: 1.08; margin: 0 0 16px; letter-spacing: -.02em; }
+  .hero p { font-size: 19px; line-height: 1.5; margin: 0 0 28px; max-width: 520px; color: var(--muted); }
+  .hero-img { width: 100%; height: auto; max-width: 600px; aspect-ratio: 5 / 4; object-fit: cover; border-radius: 24px; justify-self: end;
+    box-shadow: 0 24px 60px rgba(43,45,48,.18); }
+  @media (max-width: 800px) { .hero { grid-template-columns: 1fr; } .hero-img { order: -1; justify-self: stretch; max-width: none; aspect-ratio: 16 / 10; } }
   .btns { display: flex; gap: 12px; flex-wrap: wrap; }
   .btn { display: inline-flex; align-items: center; height: 52px; padding: 0 26px; border-radius: 26px; font-size: 17px; font-weight: 600;
     border: 0; cursor: pointer; text-decoration: none; }
   .btn-primary { background: var(--accent); color: #fff; }
-  .btn-light { background: rgba(255,255,255,.92); color: var(--text); }
+  .btn-light { background: #fff; color: var(--text); border: 1px solid #E4E0DA; }
   section { padding: 56px clamp(16px, 5vw, 64px); max-width: 1100px; }
   section p { color: var(--muted); font-size: 17px; line-height: 1.6; }
   @media (max-width: 700px) { header nav { display: none; } }
@@ -32,12 +34,15 @@
   <div class="note">Testseite: So öffnet sich der Konfigurator auf der Website (Desktop als Popup, Handy als ganze Seite).</div>
   <header><strong>CG ATELIER</strong><nav><span>Pergolen</span><span>Showroom</span><span>Kontakt</span></nav></header>
   <div class="hero">
+    <div>
     <h1>Ihre Pergola, gestaltet in 3D.</h1>
     <p>Modell, Maße, Farben und Komfort wählen und den echten Sonnenverlauf an Ihrer Adresse sehen.</p>
     <div class="btns">
       <a href="#" class="btn btn-primary" data-cg-pergola data-lang="de">Pergola konfigurieren</a>
       <a href="#" class="btn btn-light" data-cg-pergola data-lang="fr">Configurer ma pergola</a>
     </div>
+    </div>
+    <img class="hero-img" src="assets/pergola-hero.jpg" alt="Bioklimatische Pergola mit Lounge am Pool" width="447" height="447">
   </div>
   <section>
     <h2>Platzhalterinhalt</h2>
