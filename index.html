@@ -690,7 +690,7 @@ const I18N = {
       from: 'dès {price}', demoPrices: 'Prix démo',
       copy: 'Enregistrer ma configuration (lien)', copied: 'Lien copié. Vous pouvez reprendre votre configuration à tout moment.',
       copyFail: 'Copiez ce lien pour reprendre plus tard : {url}',
-      stepsShort: ['Usage', 'Montage', 'Dimensions', 'Toit', 'Couleur', 'Côtés', 'Confort', 'Votre pergola']
+      stepsShort: ['Usage', 'Montage', 'Toit', 'Dimensions', 'Couleur', 'Côtés', 'Confort', 'Votre pergola']
     },
     price: {
       label: 'Votre prix indicatif', prefix: 'env.', from: 'à partir de',
@@ -744,7 +744,7 @@ const I18N = {
       free: { t: 'Autoportante', d: 'Libre dans le jardin ou au bord de la piscine.', extra: '+ {price}' },
       sunLink: 'Voir la course du soleil'
     },
-    s3: {
+    dims: {
       title: 'Quelles dimensions pour votre pergola ?',
       subWall: 'Largeur le long de la façade, profondeur vers le jardin.',
       subFree: 'Largeur et profondeur de la surface couverte.',
@@ -757,7 +757,7 @@ const I18N = {
       bigger: 'Plus grand ? Nous couplons deux modules, parlez-nous-en.',
       suggest: '{model} existe dans cette taille.', choose: 'Choisir {model}'
     },
-    s4: {
+    roof: {
       title: 'Quel toit pour votre pergola ?',
       sub: 'Trois familles, sept modèles. Notre recommandation est présélectionnée.',
       types: {
@@ -875,7 +875,7 @@ const I18N = {
       from: 'ab {price}', demoPrices: 'Demo-Preise',
       copy: 'Konfiguration speichern (Link)', copied: 'Link kopiert. Sie können jederzeit weitermachen.',
       copyFail: 'Kopieren Sie diesen Link, um später weiterzumachen: {url}',
-      stepsShort: ['Nutzung', 'Montage', 'Maße', 'Dach', 'Farbe', 'Seiten', 'Komfort', 'Ihre Pergola']
+      stepsShort: ['Nutzung', 'Montage', 'Dach', 'Maße', 'Farbe', 'Seiten', 'Komfort', 'Ihre Pergola']
     },
     price: {
       label: 'Ihr Richtpreis', prefix: 'ca.', from: 'ab',
@@ -929,7 +929,7 @@ const I18N = {
       free: { t: 'Freistehend', d: 'Frei im Garten oder direkt am Pool.', extra: '+ {price}' },
       sunLink: 'Sonnenverlauf ansehen'
     },
-    s3: {
+    dims: {
       title: 'Wie groß soll Ihre Pergola werden?',
       subWall: 'Breite entlang der Hauswand, Tiefe Richtung Garten.',
       subFree: 'Breite und Tiefe der überdachten Fläche.',
@@ -942,7 +942,7 @@ const I18N = {
       bigger: 'Größer? Wir koppeln zwei Module, sprechen Sie uns an.',
       suggest: '{model} gibt es in dieser Größe.', choose: '{model} wählen'
     },
-    s4: {
+    roof: {
       title: 'Welches Dach passt zu Ihnen?',
       sub: 'Drei Dachtypen, sieben Modelle. Unsere Empfehlung ist vorausgewählt.',
       types: {
@@ -1359,7 +1359,7 @@ function decodeHash(hash) {
   s.options = { led: o[0] === 1, heaters: clamp(o[1] || 0, 0, 4), sensor: o[2] === 1, smarthome: o[3] === 1, solar: o[4] === 1, lightband: o[5] === 1 };
   const st = clamp(parseInt(p.get('st'), 10) || 1, 1, 8);
   s.step = st; s.maxStep = st;
-  s.mountTouched = st > 2; s.modelTouched = st > 4; s.sidesTouched = st > 6;
+  s.mountTouched = st > 2; s.modelTouched = st > 3; s.sidesTouched = st > 6;
   return s;
 }
 
@@ -1755,7 +1755,7 @@ const Scene3D = (() => {
       bush.position.set(px, 0.85, pz); bush.scale.set(1, 1.15, 1); bush.castShadow = true; fur.add(bush);
     });
 
-    /* Maßketten (Schritt 3) */
+    /* Maßketten (Schritt 4) */
     const dims = new T.Group(); groups.dims = dims; scene.add(dims);
     const dz = (wall ? D : D) + 0.55, dx = W / 2 + 0.55;
     dims.add(box(W, 0.012, 0.012, mats.dim, 0, 0.02, dz, false));
@@ -1766,7 +1766,7 @@ const Scene3D = (() => {
     const lw = label(fmtM(s.width), sc); lw.position.set(0, 0.3, dz); dims.add(lw);
     const ld = label(fmtM(s.depth), sc); ld.position.set(dx, 0.3, D / 2); dims.add(ld);
     dims.children.forEach(c => { c.renderOrder = 10; });
-    dims.visible = step === 3;
+    dims.visible = step === 4;
 
     /* Schattenkamera eng einpassen */
     const r = Math.max(Math.max(W, D) / 2 + 4, wall ? Math.max(12, W + 6) / 2 + 0.5 : 0);
@@ -2116,8 +2116,8 @@ const Scene3D = (() => {
   const PRESETS = {
     1: { az: 0.6, pol: 1.18, k: 1.2, ty: 1.1 },
     2: { az: 0.78, pol: 1.12, k: 1.35, ty: 1.2 },
-    3: { az: 0.12, pol: 0.95, k: 1.18, ty: 0.7 },
-    4: { az: 0.32, pol: 1.0, k: 1.0, ty: 1.9 },
+    3: { az: 0.32, pol: 1.0, k: 1.0, ty: 1.9 },
+    4: { az: 0.12, pol: 0.95, k: 1.18, ty: 0.7 },
     5: { az: 1.0, pol: 1.22, k: 0.82, ty: 1.6 },
     6: { az: 0.55, pol: 0.9, k: 1.22, ty: 1.0 },
     7: { az: 0.18, pol: 1.3, k: 0.95, ty: 1.4 },
@@ -2381,12 +2381,12 @@ const Scene3D = (() => {
     if (!ready) return;
     endFocus();
     if (sunMode) setSunMode(false, false);
-    if (groups.dims) groups.dims.visible = n === 3;
+    if (groups.dims) groups.dims.visible = n === 4;
     if (n !== 6) { hoverSide = null; panelSide = null; }
     applyHighlight();
     flyTo(n);
     lastInteract = performance.now();
-    if (n === 4 && !wowDone && lastState && MODELS[lastState.model].type === 'bio') { wowDone = true; setTimeout(playLouverDemo, reducedMotion.matches ? 0 : 900); }
+    if (n === 3 && !wowDone && lastState && MODELS[lastState.model].type === 'bio') { wowDone = true; setTimeout(playLouverDemo, reducedMotion.matches ? 0 : 900); }
     dirty = true;
   }
   function setLouver(deg, animate = false) {
@@ -2418,7 +2418,7 @@ const Scene3D = (() => {
     sunMode = on;
     if (!ready) return;
     if (groups.sunpath) groups.sunpath.visible = on;
-    if (groups.dims) groups.dims.visible = !on && step === 3;
+    if (groups.dims) groups.dims.visible = !on && step === 4;
     if (!on) tweens.delete('time');
     applySun();
     if (fly) flyTo(on ? 'sun' : step);
@@ -2479,7 +2479,7 @@ const Scene3D = (() => {
       renderer.setPixelRatio(prevPR);
       renderer.setSize(prevSize.x, prevSize.y, false);
       build(real); applyColors(real); applyOptions(real);
-      if (groups.dims) groups.dims.visible = step === 3 && !sunMode;
+      if (groups.dims) groups.dims.visible = step === 4 && !sunMode;
       if (groups.sunpath) groups.sunpath.visible = sunMode;
       renderer.render(scene, camera);
       dirty = true;
@@ -2829,10 +2829,10 @@ const UI = (() => {
   }
 
   /* ---------- Schritt-Panel ---------- */
-  function head(n, sub) {
+  function head(n, sub, key = 's' + n) {
     return `<p class="eyebrow">${esc(t('ui.stepOf', { n, total: 8 }))}</p>
-      <h1 tabindex="-1" id="stepTitle">${esc(t(`s${n}.title`))}</h1>
-      <p class="sub">${esc(sub || t(`s${n}.sub`))}</p>`;
+      <h1 tabindex="-1" id="stepTitle">${esc(t(`${key}.title`))}</h1>
+      <p class="sub">${esc(sub || t(`${key}.sub`))}</p>`;
   }
   const check = `<span class="check">${icon('check')}</span>`;
   function card({ act, val, ic, title, desc, extra, selected }) {
@@ -2860,33 +2860,33 @@ const UI = (() => {
         <output id="azOut" for="azRange">${esc(t('orient.value', { deg: state.azimuth, dir: dir16(state.azimuth) }))}</output></div>
       <p style="margin-top:12px"><button type="button" class="linkbtn" data-act="sunOpen" data-fk="sunOpen">${icon('sunpath')}${esc(t('s2.sunLink'))}</button></p>`,
 
-    3: () => {
+    4: () => {
       const L = limitsFor(state.model, state.mount, state.width, state.depth);
       const dim = (k, lim, label) => `
         <div class="dim">
           <div class="dim-row"><label for="${k}Num">${esc(label)}</label>
-            <span class="num"><input id="${k}Num" type="number" inputmode="numeric" min="${lim[0]}" max="${lim[1]}" step="1" data-dim="${k}" data-kind="num" data-fk="${k}Num" aria-describedby="${k}Msg"><span aria-hidden="true">${t('s3.unit')}</span></span></div>
-          <input type="range" id="${k}Range" min="${lim[0]}" max="${lim[1]}" step="10" data-dim="${k}" data-kind="range" data-fk="${k}Range" aria-label="${esc(label)} (${t('s3.unit')})">
+            <span class="num"><input id="${k}Num" type="number" inputmode="numeric" min="${lim[0]}" max="${lim[1]}" step="1" data-dim="${k}" data-kind="num" data-fk="${k}Num" aria-describedby="${k}Msg"><span aria-hidden="true">${t('dims.unit')}</span></span></div>
+          <input type="range" id="${k}Range" min="${lim[0]}" max="${lim[1]}" step="10" data-dim="${k}" data-kind="range" data-fk="${k}Range" aria-label="${esc(label)} (${t('dims.unit')})">
           <div class="dim-minmax" aria-hidden="true"><span>${fmtM(lim[0])}</span><span>${fmtM(lim[1])}</span></div>
           <p class="dim-msg" id="${k}Msg" role="alert"></p>
         </div>`;
-      return `${head(3, state.mount === 'wall' ? t('s3.subWall') : t('s3.subFree'))}
-        ${dim('width', L.w, t('s3.width'))}
-        ${dim('depth', L.d, t('s3.depth'))}
-        <div class="area"><span>${esc(t('s3.area'))}</span><strong id="areaVal"></strong></div>
-        <p class="note">${esc(t('s3.limits', { model: modelLabel(state.model), mount: t('mount.' + state.mount),
-          sizes: limitConfigs(state.model, state.mount).map(c => `${fmtRange(c.w)} × ${fmtRange(c.d)}`).join(` ${t('s3.or')} `) }))}</p>
+      return `${head(4, state.mount === 'wall' ? t('dims.subWall') : t('dims.subFree'), 'dims')}
+        ${dim('width', L.w, t('dims.width'))}
+        ${dim('depth', L.d, t('dims.depth'))}
+        <div class="area"><span>${esc(t('dims.area'))}</span><strong id="areaVal"></strong></div>
+        <p class="note">${esc(t('dims.limits', { model: modelLabel(state.model), mount: t('mount.' + state.mount),
+          sizes: limitConfigs(state.model, state.mount).map(c => `${fmtRange(c.w)} × ${fmtRange(c.d)}`).join(` ${t('dims.or')} `) }))}</p>
         <div class="hint" id="dimHint" hidden></div>`;
     },
 
-    4: () => {
+    3: () => {
       const types = ['bio', 'glass', 'retract'];
       const recType = MODELS[state.recommended].type;
-      return `${head(4)}
-        <div class="seg" role="group" aria-label="${esc(t('s4.title'))}">
-          ${types.map(k => `<button type="button" data-act="roofType" data-val="${k}" data-fk="roof-${k}" aria-pressed="${state.roofType === k}">${icon(k)}<span>${esc(t(`s4.types.${k}.t`))}</span></button>`).join('')}
+      return `${head(3, null, 'roof')}
+        <div class="seg" role="group" aria-label="${esc(t('roof.title'))}">
+          ${types.map(k => `<button type="button" data-act="roofType" data-val="${k}" data-fk="roof-${k}" aria-pressed="${state.roofType === k}">${icon(k)}<span>${esc(t(`roof.types.${k}.t`))}</span></button>`).join('')}
         </div>
-        <p class="type-desc">${esc(t(`s4.types.${state.roofType}.d`))}</p>
+        <p class="type-desc">${esc(t(`roof.types.${state.roofType}.d`))}</p>
         <div class="models">
           ${ROOF_TYPES[state.roofType].map(k => {
             const mt = t('models.' + k);
@@ -2910,7 +2910,7 @@ const UI = (() => {
               <span class="mc-benefit">${esc(mt.benefit)}</span>
               <span class="mc-specs">${mt.specs.map(x => `<span class="mc-spec">${esc(x)}</span>`).join('')}</span>
               <span class="mc-foot"><span class="mc-price">${tMoney('ui.from', pr)}</span>
-                ${fits ? '' : `<span class="mc-fit">${esc(t('s4.fit', { w: fmtM(fit.w), d: fmtM(fit.d) }))}</span>`}</span>
+                ${fits ? '' : `<span class="mc-fit">${esc(t('roof.fit', { w: fmtM(fit.w), d: fmtM(fit.d) }))}</span>`}</span>
             </button>`;
           }).join('')}
         </div>`;
@@ -2987,12 +2987,12 @@ const UI = (() => {
   const thumbKey = (k) => [k, state.mount, state.colorFrame, state.colorRoof, state.width, state.depth].join('|');
   let thumbTimer = 0;
   function ensureThumbs() {
-    if (state.step !== 4 || viewerState !== 'ready') return;
+    if (state.step !== 3 || viewerState !== 'ready') return;
     const missing = ROOF_TYPES[state.roofType].filter(k => !thumbCache[thumbKey(k)]);
     if (!missing.length) return;
     clearTimeout(thumbTimer);
     thumbTimer = setTimeout(() => {
-      if (state.step !== 4) return;
+      if (state.step !== 3) return;
       const keys = Object.fromEntries(missing.map(k => [k, thumbKey(k)]));
       const res = Scene3D.makeThumbs(state, missing);
       Object.entries(res).forEach(([k, url]) => {
@@ -3056,8 +3056,8 @@ const UI = (() => {
       [1, 'purpose', s.purpose ? t(`s1.${s.purpose}.t`) : '—'],
       [2, 'mount', t(`s2.${s.mount}.t`)],
       [2, 'orientation', `${t('orient.value', { deg: s.azimuth, dir: dir16(s.azimuth) })} · ${UI.siteLabel()}`],
-      [3, 'size', `${fmtM(s.width)} × ${fmtM(s.depth)} · ${fmtArea(s.width, s.depth)}`],
-      [4, 'model', `${modelLabel(s.model)} (${t(`s4.types.${roofType}.t`)})`],
+      [3, 'model', `${modelLabel(s.model)} (${t(`roof.types.${roofType}.t`)})`],
+      [4, 'size', `${fmtM(s.width)} × ${fmtM(s.depth)} · ${fmtArea(s.width, s.depth)}`],
       [5, 'colors', colors],
       [6, 'sides', activeSides(s).map(k => `${t('side.' + k)}: ${t('s6.opt.' + s.sides[k])}`).join(' · ')],
       [7, 'comfort', comfort]
@@ -3123,7 +3123,7 @@ const UI = (() => {
 
   function panelSig() {
     const cfg = { ...state, ui: { formMode: state.ui.formMode, sending: state.ui.sending, formError: !!state.ui.formError }, lead: null, view: null, utm: null };
-    if (state.step === 3) { cfg.width = cfg.depth = 0; }
+    if (state.step === 4) { cfg.width = cfg.depth = 0; }
     if (state.step === 5) { cfg.customRal = cfg.customRal ? 1 : 0; }
     cfg.geoQuery = null;
     if (state.step === 2) { cfg.azimuth = 0; cfg.azSource = 0; }   // Ausrichtung wird in syncPanel aktualisiert (Slider bleibt greifbar)
@@ -3155,7 +3155,7 @@ const UI = (() => {
   /* Werte, die sich beim Ziehen ändern, ohne Neuaufbau aktualisieren */
   function syncPanel() {
     ensureThumbs();
-    if (state.step === 3) {
+    if (state.step === 4) {
       ['width', 'depth'].forEach(k => {
         const num = $(`#${k}Num`), rng = $(`#${k}Range`), msg = $(`#${k}Msg`);
         if (!num) return;
@@ -3177,14 +3177,14 @@ const UI = (() => {
       const hint = $('#dimHint');
       const parts = [];
       // Andere Ausführung erlaubt mehr: z. B. breiter, wenn weniger tief
-      if (atW && L.w[1] < E.w[1]) { const c = limitConfigs(state.model, state.mount).find(c => c.w[1] === E.w[1]); parts.push(`<p>${esc(t('s3.altWide', { w: fmtM(c.w[1]), d: fmtM(c.d[1]) }))}</p>`); }
-      if (atD && L.d[1] < E.d[1]) { const c = limitConfigs(state.model, state.mount).find(c => c.d[1] === E.d[1]); parts.push(`<p>${esc(t('s3.altDeep', { d: fmtM(c.d[1]), w: fmtM(c.w[1]) }))}</p>`); }
+      if (atW && L.w[1] < E.w[1]) { const c = limitConfigs(state.model, state.mount).find(c => c.w[1] === E.w[1]); parts.push(`<p>${esc(t('dims.altWide', { w: fmtM(c.w[1]), d: fmtM(c.d[1]) }))}</p>`); }
+      if (atD && L.d[1] < E.d[1]) { const c = limitConfigs(state.model, state.mount).find(c => c.d[1] === E.d[1]); parts.push(`<p>${esc(t('dims.altDeep', { d: fmtM(c.d[1]), w: fmtM(c.w[1]) }))}</p>`); }
       if ((atW && L.w[1] >= E.w[1]) || (atD && L.d[1] >= E.d[1]) || state.ui.dimWanted) {
         const want = state.ui.dimWanted || { w: state.width + (atW ? 10 : 0), d: state.depth + (atD ? 10 : 0) };
         const alt = suggestModel(want.w, want.d);
-        parts.push(`<p>${esc(t('s3.bigger'))}</p>`);
-        if (alt) parts.push(`<p>${esc(t('s3.suggest', { model: modelLabel(alt) }))}</p>
-          <button type="button" class="linkbtn" data-act="model" data-val="${alt}" data-fk="suggest">${esc(t('s3.choose', { model: modelLabel(alt) }))} ${icon('next')}</button>`);
+        parts.push(`<p>${esc(t('dims.bigger'))}</p>`);
+        if (alt) parts.push(`<p>${esc(t('dims.suggest', { model: modelLabel(alt) }))}</p>
+          <button type="button" class="linkbtn" data-act="model" data-val="${alt}" data-fk="suggest">${esc(t('dims.choose', { model: modelLabel(alt) }))} ${icon('next')}</button>`);
       }
       if (parts.length) hint.innerHTML = parts.join('');
       hint.hidden = !parts.length;
@@ -3404,13 +3404,13 @@ const UI = (() => {
         if (isNaN(v)) { el.value = state[k]; return; }
         const want = { w: k === 'width' ? v : state.width, d: k === 'depth' ? v : state.depth };
         let msg = '', wanted = null;
-        if (v > E[1]) { msg = t('s3.max', { max: fmtM(E[1]) }); wanted = want; }
-        if (v < E[0]) msg = t('s3.min', { min: fmtM(E[0]) });
+        if (v > E[1]) { msg = t('dims.max', { max: fmtM(E[1]) }); wanted = want; }
+        if (v < E[0]) msg = t('dims.min', { min: fmtM(E[0]) });
         // gewünschtes Maß möglichst halten, notfalls das andere Maß anpassen (andere Ausführung)
         const f = fitLimits(state.model, state.mount, want.w, want.d, dk);
         const other = k === 'width' ? 'depth' : 'width';
         if (!msg && f[other === 'width' ? 'w' : 'd'] !== state[other]) {
-          msg = t('s3.otherAdjusted', { dim: t('s3.' + other), val: fmtM(f[other === 'width' ? 'w' : 'd']) });
+          msg = t('dims.otherAdjusted', { dim: t('dims.' + other), val: fmtM(f[other === 'width' ? 'w' : 'd']) });
         }
         el.value = f[dk];
         setState({ width: f.w, depth: f.d, ui: { dimMsg: { ...state.ui.dimMsg, [k]: msg }, dimWanted: wanted } }, { quiet: true });
