@@ -167,6 +167,17 @@ button { cursor: pointer; }
 .compass button { min-height: 48px; border: 1px solid var(--line); background: var(--card); border-radius: 10px; font-size: 15px; font-weight: 600; color: var(--text); }
 .compass button small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
 .compass button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); }
+.hotspots { position: absolute; inset: 0; pointer-events: none; }
+.hs { position: absolute; left: 0; top: 0; width: 44px; height: 44px; margin: -22px 0 0 -22px; border: 0; background: none; padding: 0; pointer-events: auto; display: flex; align-items: center; justify-content: center; }
+.hs i { position: relative; width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,.25); display: flex; align-items: center; justify-content: center; font-style: normal; font-weight: 700; font-size: 13px; color: var(--accent); }
+.hs i::after { content: ''; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid rgba(255,255,255,.8); animation: hsPulse 2.2s ease-out infinite; }
+@keyframes hsPulse { from { transform: scale(.7); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+.hs[aria-expanded="true"] i { background: var(--accent); color: #fff; }
+.hs-card { position: absolute; left: 12px; top: 124px; width: min(320px, calc(100% - 80px)); background: rgba(255,255,255,.97); border: 1px solid var(--line); border-radius: 14px; padding: 14px 44px 14px 16px; }
+.hs-card strong { display: block; font-size: 16px; margin-bottom: 4px; }
+.hs-card p { margin: 0; font-size: 15px; color: var(--muted); }
+.hs-close { position: absolute; top: 2px; right: 2px; width: 44px; height: 44px; border: 0; background: none; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.hs-close svg { width: 18px; height: 18px; }
 .viewer-nav { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; }
 .viewer-nav button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: rgba(255,255,255,.94); color: var(--text); display: flex; align-items: center; justify-content: center; }
 .viewer-nav button:hover { border-color: #C9C3BA; }
@@ -685,7 +696,7 @@ const I18N = {
       noWebgl: 'Votre navigateur ne peut pas afficher l’aperçu 3D. Le configurateur fonctionne quand même : vos choix et votre prix restent à jour.',
       day: 'Jour', night: 'Soirée', louvers: 'Ouvrir les lames', extend: 'Déployer le toit',
       dragHint: 'Glisser : tourner · clic droit : déplacer · molette : avancer vers le pointeur', dragHintTouch: 'Glisser : tourner · 2 doigts : zoom et déplacer',
-      rotLeft: 'Tourner vers la gauche', rotRight: 'Tourner vers la droite', resetView: 'Recentrer la vue', chooseFirst: 'Choisissez d’abord une option ci-dessus.',
+      rotLeft: 'Tourner vers la gauche', rotRight: 'Tourner vers la droite', resetView: 'Recentrer la vue', rain: 'Pluie', hsClose: 'Fermer', chooseFirst: 'Choisissez d’abord une option ci-dessus.',
       edit: 'Modifier', none: 'Aucun', more: 'Plus', less: 'Moins', recommended: 'Recommandé pour vous',
       from: 'dès {price}', demoPrices: 'Prix démo',
       copy: 'Enregistrer ma configuration (lien)', copied: 'Lien copié. Vous pouvez reprendre votre configuration à tout moment.',
@@ -785,12 +796,26 @@ const I18N = {
     },
     mount: { wall: 'adossée', free: 'autoportante' },
     tiers: { 1: 'Essentiel', 2: 'Confort', 3: 'Premium' },
+    rain: {
+      bio: 'Le capteur détecte la pluie : les lames se ferment, l’eau s’écoule par les gouttières et à travers les poteaux.',
+      glass: 'Le toit en verre arrête la pluie ; l’eau s’écoule par la gouttière avant.',
+      retract: 'Le toit se déploie et vous protège ; l’eau s’écoule par les poteaux.'
+    },
+    hs: {
+      louvers: { t: 'Lames orientables', d: 'Orientables jusqu’à {max}° : dosez soleil, ombre et ventilation. Fermées, elles sont étanches à la pluie.' },
+      glass: { t: 'Toit en verre', d: 'Lumineux toute l’année, avec une légère pente pour que la pluie s’écoule.' },
+      fabric: { t: 'Toit déployable', d: 'Toile ou PVC sur rails, ouvert ou fermé en quelques secondes grâce au moteur.' },
+      drain: { t: 'Évacuation invisible', d: 'L’eau de pluie passe par les gouttières du cadre et descend à travers les poteaux, sans descente visible.' },
+      zipIntegrated: { t: 'ZIP intégré invisible', d: 'La toile verticale coupe-vent disparaît entièrement dans le profilé lorsqu’elle est remontée.' },
+      sides: { t: 'Côtés sur mesure', d: 'Chaque côté peut être fermé par des stores ZIP coupe-vent ou des parois vitrées coulissantes.' },
+      motor: { t: 'Moteur et automatisme', d: 'Moteur silencieux avec capteur vent et pluie qui réagit automatiquement. Commande par télécommande ou app.' }
+    },
     s5: {
       title: 'La couleur de votre pergola',
       sub: 'Laquage poudre mat, résistant aux UV. Structure et toit au choix.',
       frame: 'Structure', roof: { bio: 'Lames', glass: 'Chevrons', retract: 'Toile' },
       ralLabel: 'Code RAL souhaité (facultatif)', ralPh: 'ex. RAL 8019',
-      customNote: 'Couleur RAL au choix : + 6 % sur la pergola. Nuancier complet dans notre showroom.',
+      customNote: 'Couleur RAL au choix : + {pct} % sur la pergola. Nuancier complet dans notre showroom.',
       colors: { ral7016: 'Anthracite', ral9016: 'Blanc', ral9007: 'Gris', sand: 'Sable / bronze', custom: 'RAL au choix' }
     },
     s6: {
@@ -870,7 +895,7 @@ const I18N = {
       noWebgl: 'Ihr Browser kann die 3D-Vorschau nicht anzeigen. Der Konfigurator funktioniert trotzdem: Auswahl und Preis bleiben aktuell.',
       day: 'Tag', night: 'Abend', louvers: 'Lamellen öffnen', extend: 'Dach ausfahren',
       dragHint: 'Ziehen: drehen · Rechtsklick: verschieben · Mausrad: zur Maus hinfahren', dragHintTouch: 'Ziehen: drehen · 2 Finger: zoomen & verschieben',
-      rotLeft: 'Nach links drehen', rotRight: 'Nach rechts drehen', resetView: 'Ansicht zurücksetzen', chooseFirst: 'Bitte wählen Sie zuerst eine Option.',
+      rotLeft: 'Nach links drehen', rotRight: 'Nach rechts drehen', resetView: 'Ansicht zurücksetzen', rain: 'Regen', hsClose: 'Schließen', chooseFirst: 'Bitte wählen Sie zuerst eine Option.',
       edit: 'Ändern', none: 'Keine', more: 'Mehr', less: 'Weniger', recommended: 'Empfohlen für Sie',
       from: 'ab {price}', demoPrices: 'Demo-Preise',
       copy: 'Konfiguration speichern (Link)', copied: 'Link kopiert. Sie können jederzeit weitermachen.',
@@ -970,12 +995,26 @@ const I18N = {
     },
     mount: { wall: 'Wandanbau', free: 'freistehend' },
     tiers: { 1: 'Einstieg', 2: 'Komfort', 3: 'Premium' },
+    rain: {
+      bio: 'Der Sensor erkennt Regen: Die Lamellen schließen sich, das Wasser läuft über die Rinnen durch die Pfosten ab.',
+      glass: 'Das Glasdach hält den Regen ab; das Wasser läuft über die Rinne vorne ab.',
+      retract: 'Das Dach fährt aus und schützt vor Regen; das Wasser läuft über die Pfosten ab.'
+    },
+    hs: {
+      louvers: { t: 'Drehbare Lamellen', d: 'Bis {max}° drehbar: Sonne, Schatten und Belüftung stufenlos dosieren. Geschlossen regendicht.' },
+      glass: { t: 'Glasdach', d: 'Ganzjährig hell, mit leichtem Gefälle, damit Regen sicher abläuft.' },
+      fabric: { t: 'Ausfahrbares Dach', d: 'Tuch bzw. PVC auf Schienen, per Motor in Sekunden geöffnet oder geschlossen.' },
+      drain: { t: 'Unsichtbare Entwässerung', d: 'Regenwasser fließt über Rinnen im Rahmen und durch die Pfosten ab, ganz ohne sichtbare Fallrohre.' },
+      zipIntegrated: { t: 'ZIP unsichtbar integriert', d: 'Der windfeste Senkrecht-Stoff verschwindet eingefahren komplett im Profil.' },
+      sides: { t: 'Seiten nach Wunsch', d: 'Jede Seite lässt sich mit windfesten ZIP-Screens oder Glas-Schiebewänden schließen.' },
+      motor: { t: 'Motor & Automatik', d: 'Leiser Motor mit Wind- und Regensensor, der automatisch reagiert. Steuerung per Fernbedienung oder App.' }
+    },
     s5: {
       title: 'Die Farbe Ihrer Pergola',
       sub: 'Matte Pulverbeschichtung, UV-beständig. Struktur und Dach getrennt wählbar.',
       frame: 'Struktur', roof: { bio: 'Lamellen', glass: 'Sprossen', retract: 'Tuch' },
       ralLabel: 'Gewünschter RAL-Code (optional)', ralPh: 'z. B. RAL 8019',
-      customNote: 'Sonderfarbe nach RAL: + 6 % auf die Pergola. Den kompletten Farbfächer sehen Sie im Showroom.',
+      customNote: 'Sonderfarbe nach RAL: + {pct} % auf die Pergola. Den kompletten Farbfächer sehen Sie im Showroom.',
       colors: { ral7016: 'Anthrazit', ral9016: 'Weiß', ral9007: 'Grau', sand: 'Sand / Bronze', custom: 'Sonderfarbe' }
     },
     s6: {
@@ -1097,6 +1136,7 @@ const ICON = {
   pause: '<path d="M8 5v14M16 5v14" stroke-width="3"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   rotL: '<path d="M4 13a8 8 0 1 0 2.6-6.1"/><path d="M4 4v5h5"/>',
+  rain: '<path d="M7 15a4 4 0 0 1 .4-8A5.5 5.5 0 0 1 18 8a3.5 3.5 0 0 1 0 7z"/><path d="M8 18l-1 2.5M12 18l-1 2.5M16 18l-1 2.5"/>',
   rotR: '<path d="M20 13a8 8 0 1 1-2.6-6.1"/><path d="M20 4v5h-5"/>',
   recenter: '<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>'
 };
@@ -1412,7 +1452,7 @@ function trackStep(n) {
    Hauswand bei z = 0, Pergola wächst nach +z, Breite entlang x
    ===================================================================== */
 const Scene3D = (() => {
-  let T, OrbitControls, RoomEnvironment;
+  let T, OrbitControls, RoomEnvironment, RoundedBox;
   let renderer, scene, camera, controls, host;
   let ready = false, rafId = 0, dirty = true, lastT = 0, running = false, pageVisible = true, inView = true;
   let structSig = '', lastState = null, step = 1;
@@ -1427,7 +1467,7 @@ const Scene3D = (() => {
   const tex = {};
   const refs = { sides: {}, louvers: null, fabric: null, ledStrips: null, heaters: [], dims: null, labels: {} };
   let sunMode = false, pathSig = '', pathR = 6, sceneTexts = {};
-  const anim = { louver: 0, extend: 1, time: 15, date: '2026-06-21',
+  const anim = { louver: 0, extend: 1, time: 15, date: '2026-06-21', rain: 0,
     sides: { front: { zip: 0, glass: 0 }, left: { zip: 0, glass: 0 }, right: { zip: 0, glass: 0 }, back: { zip: 0, glass: 0 } } };
   const sideTarget = {};
   const tweens = new Map();
@@ -1504,6 +1544,29 @@ const Scene3D = (() => {
       g.strokeStyle = 'rgba(160,180,210,.35)'; g.lineWidth = 1;
       g.beginPath(); g.moveTo(w / 2, 0); g.lineTo(w / 2, h); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
     });
+    // Pulverbeschichtung: feine, unregelmäßige Rauheit (grün-Kanal = Rauheit)
+    tex.powder = canvasTex(128, 128, (g, w, h) => {
+      g.fillStyle = 'rgb(118,118,118)'; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 3500; i++) { const v = 95 + Math.floor(rnd() * 60); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(rnd() * w, rnd() * h, 1, 1); }
+    }, true);
+    tex.powder.colorSpace = T.NoColorSpace; tex.powder.repeat.set(4, 4);
+    // Kontaktschatten (radialer Verlauf)
+    tex.blob = canvasTex(128, 128, (g, w, h) => {
+      const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.55, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    }, false);
+    tex.blob.colorSpace = T.NoColorSpace;
+    // Lichtkegel am Boden (LED / Heizstrahler)
+    tex.pool = canvasTex(128, 128, (g, w, h) => {
+      const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+      gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(0.5, 'rgba(255,255,255,.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    }, false);
+    tex.leaves = canvasTex(128, 128, (g, w, h) => {
+      g.fillStyle = '#4C6B39'; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 1800; i++) { g.fillStyle = `hsla(${88 + rnd() * 30}, 40%, ${20 + rnd() * 28}%, .8)`; g.beginPath(); g.ellipse(rnd() * w, rnd() * h, 1.5 + rnd() * 2.5, 1 + rnd() * 1.5, rnd() * 3, 0, 7); g.fill(); }
+    });
     tex.zip = canvasTex(64, 64, (g, w, h) => {
       g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
       g.fillStyle = '#d0d0d0';
@@ -1514,8 +1577,10 @@ const Scene3D = (() => {
   /* ---------- Materialien (geteilt, Farben ändern sich ohne Neubau) ---------- */
   function std(params) { const m = new T.MeshStandardMaterial(params); m.userData.envBase = m.envMapIntensity; envMats.push(m); return m; }
   function makeMaterials() {
-    mats.frame = std({ color: COLORS.ral7016.hex, roughness: 0.55, metalness: 0.35 });
-    mats.roof = std({ color: COLORS.ral7016.hex, roughness: 0.5, metalness: 0.35 });
+    // Pulverbeschichtetes Aluminium: matte Struktur + leichter Klarlack-Glanz auf den Kanten
+    const powder = (color) => { const m = new T.MeshPhysicalMaterial({ color, roughness: 0.5, metalness: 0.3, roughnessMap: tex.powder, clearcoat: 0.35, clearcoatRoughness: 0.42 }); m.userData.envBase = 1; envMats.push(m); return m; };
+    mats.frame = powder(COLORS.ral7016.hex);
+    mats.roof = powder(COLORS.ral7016.hex);
     mats.fabric = std({ color: COLORS.ral7016.hex, roughness: 0.9, metalness: 0, side: T.DoubleSide });
     mats.solar = std({ color: '#ffffff', map: tex.solar, roughness: 0.25, metalness: 0.6 });
     mats.glass = new T.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.04, metalness: 0, transparent: true, opacity: 0.2,
@@ -1540,10 +1605,22 @@ const Scene3D = (() => {
     mats.sofa = std({ color: '#D9D2C7', roughness: 0.95 });
     mats.cushion = std({ color: '#B9AE9E', roughness: 0.95 });
     mats.wood = std({ color: '#6E5038', roughness: 0.7 });
-    mats.potMat = std({ color: '#3A3D41', roughness: 0.7 });
-    mats.leaf = std({ color: '#5E7F45', roughness: 0.9, flatShading: true });
+    mats.potMat = std({ color: '#3A3D41', roughness: 0.55, metalness: 0.2 });
+    mats.leaf = std({ color: '#6E8250', roughness: 0.9, flatShading: true });
+    mats.hedge = std({ map: tex.leaves, roughness: 1 });
+    mats.trunk = std({ color: '#6B5A48', roughness: 0.9 });
+    mats.soil = std({ color: '#3B2F25', roughness: 1 });
+    mats.curb = std({ color: '#A7A196', roughness: 0.85 });
+    mats.facade = std({ color: '#F3EFE9', roughness: 0.9 });
+    mats.sill = std({ color: '#3A3D41', roughness: 0.5, metalness: 0.3 });
+    mats.pillow = std({ color: '#9A7553', roughness: 0.95 });
+    mats.legs = std({ color: '#2F3236', roughness: 0.5, metalness: 0.4 });
+    mats.ledPool = new T.MeshBasicMaterial({ map: tex.pool, color: 0xFFC27A, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false });
+    mats.heatPool = new T.MeshBasicMaterial({ map: tex.pool, color: 0xFF6A1E, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false });
     mats.spa = std({ color: '#E8E4DE', roughness: 0.6 });
     mats.water = std({ color: '#3FA6B8', roughness: 0.08, metalness: 0.1, emissive: '#2BB3D6', emissiveIntensity: 0 });
+    [[mats.frame, 0.014], [mats.roof, 0.01], [mats.sofa, 0.07], [mats.cushion, 0.06], [mats.pillow, 0.05], [mats.wood, 0.02], [mats.spa, 0.08],
+     [mats.potMat, 0.04], [mats.heaterBody, 0.012], [mats.hedge, 0.25], [mats.curb, 0.012], [mats.facade, 0.01], [mats.sill, 0.008]].forEach(([m, r]) => ROUND.set(m, r));
     mats.dim = new T.MeshBasicMaterial({ color: '#2B2D30', depthTest: false, transparent: true, opacity: 0.85 });
     mats.hit = new T.MeshBasicMaterial({ colorWrite: false, depthWrite: false, side: T.DoubleSide });
     mats.highlight = new T.MeshBasicMaterial({ color: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#7B5B3A',
@@ -1556,9 +1633,23 @@ const Scene3D = (() => {
   function makeEnvironment() {
     const skyMat = new T.ShaderMaterial({
       side: T.BackSide, depthWrite: false, fog: false,
-      uniforms: { top: { value: hexToVec(SKY.day.top) }, horizon: { value: hexToVec(SKY.day.horizon) } },
+      uniforms: { top: { value: hexToVec(SKY.day.top) }, horizon: { value: hexToVec(SKY.day.horizon) }, cloud: { value: 0.9 }, cloudCol: { value: new T.Vector3(1, 1, 1) } },
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'uniform vec3 top; uniform vec3 horizon; varying vec3 vP; void main(){ float h = clamp(vP.y, 0.0, 1.0); gl_FragColor = vec4(mix(horizon, top, pow(h, 0.55)), 1.0); }'
+      fragmentShader: `uniform vec3 top; uniform vec3 horizon; uniform float cloud; uniform vec3 cloudCol; varying vec3 vP;
+        float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float nz(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+          return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), u.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), u.x), u.y); }
+        float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { v += a * nz(p); p *= 2.03; a *= 0.5; } return v; }
+        void main(){
+          float h = clamp(vP.y, 0.0, 1.0);
+          vec3 col = mix(horizon, top, pow(h, 0.55));
+          if (vP.y > 0.0) {
+            vec2 uv = vP.xz / (vP.y + 0.22) * 1.4;
+            float c = smoothstep(0.52, 0.86, fbm(uv + 3.7)) * smoothstep(0.0, 0.3, vP.y);
+            col = mix(col, cloudCol, clamp(c * cloud, 0.0, 0.92));
+          }
+          gl_FragColor = vec4(col, 1.0);
+        }`
     });
     groups.sky = new T.Mesh(new T.SphereGeometry(90, 32, 16), skyMat);
     scene.add(groups.sky);
@@ -1568,7 +1659,8 @@ const Scene3D = (() => {
     scene.add(lights.hemi);
     lights.sun = new T.DirectionalLight(0xFFF1DC, 2.6);
     lights.sun.castShadow = true;
-    lights.sun.shadow.mapSize.set(1024, 1024);
+    const sm = matchMedia('(pointer: fine)').matches && (navigator.hardwareConcurrency || 4) >= 4 ? 2048 : 1024;
+    lights.sun.shadow.mapSize.set(sm, sm);
     lights.sun.shadow.bias = -0.0004;
     lights.sun.shadow.normalBias = 0.03;
     scene.add(lights.sun, lights.sun.target);
@@ -1585,16 +1677,27 @@ const Scene3D = (() => {
   }
 
   /* ---------- Bau-Helfer ---------- */
+  /* Kantenradius je Material: Aluminiumprofile, Polster und Holz bekommen echte, leicht gerundete Kanten */
+  const ROUND = new Map();
   function box(w, h, d, mat, x = 0, y = 0, z = 0, cast = true, receive = false) {
-    const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat);
+    const r = ROUND.get(mat), mn = Math.min(w, h, d);
+    const geo = r && mn > 0.03 ? new RoundedBox(w, h, d, 2, Math.min(r, mn * 0.3)) : new T.BoxGeometry(w, h, d);
+    const m = new T.Mesh(geo, mat);
     m.position.set(x, y, z); m.castShadow = cast; m.receiveShadow = receive;
     return m;
+  }
+  /* Weicher Kontaktschatten am Boden (wirkt wie Umgebungsverdeckung, kostet fast nichts) */
+  function contact(group, x, z, sx, sz, op = 0.45, y = 0.004) {
+    const m = new T.Mesh(new T.PlaneGeometry(sx, sz), new T.MeshBasicMaterial({ map: tex.blob, color: 0x000000, transparent: true, opacity: op, depthWrite: false }));
+    m.userData.ownMaterial = true; m.material.map = tex.blob;
+    m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); m.renderOrder = 1;
+    group.add(m); return m;
   }
   function disposeTree(obj) {
     if (!obj) return;
     obj.traverse(o => {
       if (o.geometry) o.geometry.dispose();
-      if (o.userData.ownMaterial && o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+      if (o.userData.ownMaterial && o.material) { if (o.material.map && o.material.map !== tex.blob) o.material.map.dispose(); o.material.dispose(); }
     });
     obj.parent && obj.parent.remove(obj);
   }
@@ -1640,7 +1743,16 @@ const Scene3D = (() => {
     postPositions(s, M, W, D).forEach(p => {
       const top = H + fh + (isGlass ? rise * (1 - p.z / D) : 0);
       pg.add(box(pw, top, pw, mats.frame, p.x, top / 2, p.z));
+      // Fußplatte mit vier Schrauben
+      const fp = pw + 0.08;
+      pg.add(box(fp, 0.014, fp, mats.frame, p.x, 0.007, p.z, false, true));
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => pg.add(box(0.016, 0.01, 0.016, mats.groove, p.x + a * (fp / 2 - 0.018), 0.019, p.z + b * (fp / 2 - 0.018), false)));
+      // Wasseraustritt (Entwässerung durch den Pfosten) an den vorderen Pfosten
+      if (!p.back && !p.mid) pg.add(box(pw * 0.45, 0.035, 0.006, mats.groove, p.x, 0.07, p.z + pw / 2 + 0.002, false));
+      contact(pg, p.x, p.z, pw * 4.2, pw * 4.2, 0.4);
     });
+    // Kontaktschatten unter der ganzen Pergola (weiche Verdeckung durch das Dach)
+    contact(pg, 0, D / 2, W * 1.08, D * 1.08, 0.16, 0.003);
 
     /* Rahmen */
     if (!isGlass) {
@@ -1653,6 +1765,8 @@ const Scene3D = (() => {
     }
 
     decorateFrame(M, pg, W, D, zIn, pw, fh, wall);
+    // Wasserführende Rinnen oben in den Seitenträgern (bioklimatisch / ausfahrbar)
+    if (M.type !== 'glass') [-1, 1].forEach(sx => pg.add(box(pw * 0.42, 0.004, D - zIn - pw * 1.2, mats.groove, sx * (W / 2 - pw / 2), H + fh + 0.002, (zIn + D - pw) / 2, false)));
 
     /* Dach */
     if (M.type === 'bio') buildLouvers(s, M, pg, W, D, zIn, pw, fh);
@@ -1685,10 +1799,16 @@ const Scene3D = (() => {
         g.add(box(0.62, 0.07, 0.12, mats.heaterBody, 0, 0, 0, false));
         g.add(box(0.52, 0.018, 0.05, mats.heaterGlow, 0, -0.04, 0, false));
         set.add(g);
+        const pool = new T.Mesh(new T.PlaneGeometry(1.6, 1.6), mats.heatPool);       // warmes Glühen am Boden
+        pool.rotation.x = -Math.PI / 2; pool.position.set(p.x, 0.007, p.z + (p.r > 0 ? -0.55 : 0.55)); pool.renderOrder = 2;
+        set.add(pool);
       });
       refs.heaters[n] = set; pg.add(set);
     }
     lights.heat.position.set(0, H - 0.5, D / 2);
+    const ledPool = new T.Mesh(new T.PlaneGeometry(W * 0.95, D * 0.95), mats.ledPool);   // Lichtkegel der LED auf dem Boden
+    ledPool.rotation.x = -Math.PI / 2; ledPool.position.set(0, 0.006, D / 2); ledPool.renderOrder = 2;
+    refs.ledPool = ledPool; ledPool.visible = !!s.options.led; pg.add(ledPool);
 
     /* Wind-/Regensensor: kleiner Mast mit Sensorkopf auf dem vorderen Eckpfosten */
     const sensor = new T.Group(); sensor.visible = !!s.options.sensor; refs.sensor = sensor;
@@ -1707,6 +1827,10 @@ const Scene3D = (() => {
     const terrace = box(tw, 0.06, td, mats.terrace, 0, -0.03, tz, false, true);
     tex.planks.repeat.set(tw / 1.16, td / 2.32);
     groups.terrace = terrace; scene.add(terrace);
+    // Randeinfassung
+    terrace.add(box(tw + 0.16, 0.1, 0.08, mats.curb, 0, 0.0, td / 2 + 0.04, false, true));
+    [-1, 1].forEach(sx => terrace.add(box(0.08, 0.1, td, mats.curb, sx * (tw / 2 + 0.04), 0.0, 0, false, true)));
+    if (!wall) terrace.add(box(tw + 0.16, 0.1, 0.08, mats.curb, 0, 0.0, -td / 2 - 0.04, false, true));
 
     /* Haus */
     if (wall) {
@@ -1723,6 +1847,10 @@ const Scene3D = (() => {
       door.add(box(0.05, dh, 0.07, mats.doorFrame, 0, dh / 2, 0.01, false));
       door.add(box(dw + 0.12, 0.04, 0.08, mats.doorFrame, 0, 0.02, 0, false));
       door.add(box(dw, dh, 0.02, mats.doorGlass, 0, dh / 2, -0.01, false));
+      // Fasche um die Tür und Schwelle
+      door.add(box(dw + 0.44, 0.16, 0.05, mats.facade, 0, dh + 0.14, 0.01, false, true));
+      [-1, 1].forEach(sx => door.add(box(0.16, dh + 0.06, 0.05, mats.facade, sx * (dw / 2 + 0.14), dh / 2 + 0.03, 0.01, false, true)));
+      door.add(box(dw + 0.2, 0.03, 0.14, mats.sill, 0, 0.015, 0.05, false, true));
       const wx = W / 2 + 1.6;
       if (wx + 0.8 < hw / 2) [-1, 1].forEach(sx => {
         const win = new T.Group(); win.position.set(sx * wx, 1.0, 0.005); house.add(win);
@@ -1730,6 +1858,10 @@ const Scene3D = (() => {
         win.add(box(1.3, 0.06, 0.08, mats.doorFrame, 0, 1.33, 0, false));
         win.add(box(1.3, 0.06, 0.1, mats.doorFrame, 0, -0.02, 0.02, false));
         [-1, 1].forEach(ex => win.add(box(0.06, 1.3, 0.08, mats.doorFrame, ex * 0.62, 0.65, 0, false)));
+        // Fasche und Fensterbank
+        win.add(box(1.62, 0.15, 0.05, mats.facade, 0, 1.43, 0.01, false, true));
+        [-1, 1].forEach(ex => win.add(box(0.15, 1.5, 0.05, mats.facade, ex * 0.74, 0.65, 0.01, false, true)));
+        win.add(box(1.56, 0.04, 0.16, mats.sill, 0, -0.06, 0.07, false, true));
       });
     }
 
@@ -1739,21 +1871,47 @@ const Scene3D = (() => {
       const sz = Math.min(2.1, W - 0.7, D - 0.6);
       fur.add(box(sz, 0.85, sz, mats.spa, 0, 0.425, D / 2, true, true));
       fur.add(box(sz - 0.24, 0.02, sz - 0.24, mats.water, 0, 0.86, D / 2, false));
+      contact(fur, 0, D / 2, sz + 0.6, sz + 0.6, 0.5);
     } else {
-      const sw = Math.min(2.2, W - 0.9), z0 = Math.max(zIn + 0.55, D * 0.3);
-      fur.add(box(sw, 0.42, 0.85, mats.sofa, 0, 0.21, z0, true, true));
-      fur.add(box(sw, 0.42, 0.2, mats.sofa, 0, 0.6, z0 - 0.33));
-      [-1, 1].forEach(sx => fur.add(box(0.18, 0.62, 0.85, mats.sofa, sx * (sw / 2 - 0.09), 0.31, z0)));
-      fur.add(box(sw - 0.4, 0.12, 0.6, mats.cushion, 0, 0.48, z0 + 0.05, false));
-      if (D > 2.4) fur.add(box(Math.min(1.1, sw * 0.55), 0.36, 0.6, mats.wood, 0, 0.18, Math.min(z0 + 1.15, D - pw - 0.5)));
+      // Lounge: Holzgestell, Sitz- und Rückenpolster, Zierkissen, Couchtisch
+      const sw = Math.min(2.3, W - 0.9), sd = 0.9, z0 = Math.max(zIn + 0.6, D * 0.3);
+      fur.add(box(sw, 0.2, sd, mats.wood, 0, 0.12, z0, true, true));
+      [-1, 1].forEach(sx => fur.add(box(0.08, 0.5, sd, mats.wood, sx * (sw / 2 - 0.04), 0.27, z0)));
+      fur.add(box(sw, 0.42, 0.08, mats.wood, 0, 0.43, z0 - sd / 2 + 0.04));
+      const n = sw > 1.7 ? 3 : 2, cw = (sw - 0.16) / n;
+      for (let i = 0; i < n; i++) {
+        const cx = -sw / 2 + 0.08 + cw * (i + 0.5);
+        fur.add(box(cw - 0.02, 0.16, sd - 0.14, mats.sofa, cx, 0.3, z0 + 0.05));
+        const back = box(cw - 0.03, 0.4, 0.16, mats.cushion, cx, 0.56, z0 - sd / 2 + 0.16);
+        back.rotation.x = -0.14; fur.add(back);
+      }
+      [-1, 1].forEach(sx => { const pl = box(0.4, 0.36, 0.12, mats.pillow, sx * (sw / 2 - 0.36), 0.52, z0 - sd / 2 + 0.3); pl.rotation.set(-0.25, sx * 0.25, sx * 0.12); fur.add(pl); });
+      contact(fur, 0, z0, sw + 0.5, sd + 0.5, 0.42);
+      if (D > 2.4) {
+        const tz = Math.min(z0 + 1.15, D - pw - 0.5), tw2 = Math.min(1.1, sw * 0.55);
+        fur.add(box(tw2, 0.05, 0.6, mats.wood, 0, 0.38, tz));
+        [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => fur.add(box(0.04, 0.36, 0.04, mats.legs, a * (tw2 / 2 - 0.06), 0.18, tz + b * 0.24)));
+        contact(fur, 0, tz, tw2 + 0.4, 0.95, 0.32);
+      }
     }
+    // Pflanzkübel mit Bäumchen
     [-1, 1].forEach(sx => {
-      const px = sx * (W / 2 + 0.75), pz = wall ? D + 0.6 : D + 0.8;
-      const pot = new T.Mesh(new T.CylinderGeometry(0.28, 0.22, 0.6, 20), mats.potMat);
-      pot.position.set(px, 0.3, pz); pot.castShadow = true; fur.add(pot);
-      const bush = new T.Mesh(new T.IcosahedronGeometry(0.42, 1), mats.leaf);
-      bush.position.set(px, 0.85, pz); bush.scale.set(1, 1.15, 1); bush.castShadow = true; fur.add(bush);
+      const px = sx * (W / 2 + 1.15), pz = wall ? D + 0.5 : D + 0.8;
+      fur.add(box(0.55, 0.75, 0.55, mats.potMat, px, 0.375, pz, true, true));
+      fur.add(box(0.47, 0.02, 0.47, mats.soil, px, 0.74, pz, false));
+      const trunk = new T.Mesh(new T.CylinderGeometry(0.03, 0.045, 0.85, 8), mats.trunk);
+      trunk.position.set(px, 1.15, pz); trunk.castShadow = true; fur.add(trunk);
+      [[0, 1.72, 0, 0.32], [0.17, 1.55, 0.07, 0.24], [-0.15, 1.58, -0.08, 0.26]].forEach(([ox, oy, oz, r]) => {
+        const c = new T.Mesh(new T.IcosahedronGeometry(r, 1), mats.leaf);
+        c.position.set(px + ox, oy, pz + oz); c.castShadow = true; fur.add(c);
+      });
+      contact(fur, px, pz, 1.0, 1.0, 0.45);
     });
+    // Hecke als ruhiger Hintergrund
+    const hx = W / 2 + 3.4;
+    if (wall) [-1, 1].forEach(sx => { fur.add(box(0.7, 1.25, 3.4, mats.hedge, sx * hx, 0.6, 1.8, true, true)); contact(fur, sx * hx, 1.8, 1.4, 4.0, 0.35); });
+    else { fur.add(box(Math.max(6, W + 4), 1.25, 0.7, mats.hedge, 0, 0.6, -2.6, true, true)); contact(fur, 0, -2.6, Math.max(6, W + 4) + 0.6, 1.4, 0.35); }
+    tex.leaves.repeat.set(3, 1.2);
 
     /* Maßketten (Schritt 4) */
     const dims = new T.Group(); groups.dims = dims; scene.add(dims);
@@ -1832,7 +1990,16 @@ const Scene3D = (() => {
       items.push(alongZ ? { x: -innerW / 2 + off + i * pitch, y: H + fh * 0.55, z: z0 + innerD / 2 }
                         : { x: 0, y: H + fh * 0.55, z: z0 + off + i * pitch });
     }
-    const geo = alongZ ? new T.BoxGeometry(0.19, 0.03, len) : new T.BoxGeometry(len, 0.03, 0.19);
+    // Gewölbtes Lamellenprofil (ähnlich Gibus-Flügelprofil), entlang der Länge extrudiert
+    const sh = new T.Shape();
+    sh.moveTo(-0.095, -0.003);
+    sh.quadraticCurveTo(-0.02, 0.026, 0.095, 0.004);
+    sh.lineTo(0.095, -0.004);
+    sh.quadraticCurveTo(0.0, -0.014, -0.095, -0.009);
+    sh.closePath();
+    const geo = new T.ExtrudeGeometry(sh, { depth: len, bevelEnabled: false, curveSegments: 8 });
+    geo.translate(0, 0, -len / 2);
+    if (!alongZ) geo.rotateY(Math.PI / 2);
     const mesh = new T.InstancedMesh(geo, mats.roof, items.length);
     mesh.castShadow = true; mesh.frustumCulled = false;
     pg.add(mesh);
@@ -1943,6 +2110,7 @@ const Scene3D = (() => {
     tex.zip.repeat.set(L * 6, fabH * 6);
     zip.add(fabric);
     const bar = box(L - 0.01, 0.045, 0.05, mats.frame, 0, fabTop, 0, false); zip.add(bar);
+    if (!M.zipIntegrated) [-1, 1].forEach(e => zip.add(box(0.045, fabTop, 0.06, mats.frame, e * (L / 2 - 0.022), fabTop / 2, 0, false)));
 
     // Glas
     const glass = new T.Group(); g.add(glass);
@@ -2007,6 +2175,7 @@ const Scene3D = (() => {
     for (let n = 1; n <= 4; n++) if (refs.heaters[n]) refs.heaters[n].visible = s.options.heaters === n;
     if (refs.louvers && refs.louvers.solar) refs.louvers.solar.visible = !!s.options.solar;
     if (refs.sensor) refs.sensor.visible = !!s.options.sensor;
+    if (refs.ledPool) refs.ledPool.visible = !!s.options.led;
     applySun();
   }
   function applySides(s) {
@@ -2048,6 +2217,7 @@ const Scene3D = (() => {
       lights.sun.intensity = 0.22 * n;
       lights.sun.color.set(0x8FA6D6);
     }
+    lights.sun.intensity *= 1 - 0.72 * anim.rain;                        // bedeckter Himmel bei Regen
     lights.sun.target.position.copy(center);
     lights.sun.position.copy(center).addScaledVector(dir, 18);
     if (refs.sunDisc) {
@@ -2062,14 +2232,20 @@ const Scene3D = (() => {
     const s = lastState;
     const top = hexToVec(SKY.day.top).lerp(hexToVec(SKY.night.top), n).lerp(hexToVec(0xB8A6C2), golden * 0.35);
     const hor = hexToVec(SKY.day.horizon).lerp(hexToVec(SKY.night.horizon), n).lerp(hexToVec(0xF3C08E), golden * 0.65);
+    const rn = anim.rain;
+    if (rn > 0) { top.lerp(hexToVec(0x8D969E), rn * (1 - n * 0.6)); hor.lerp(hexToVec(0xC3C8CC), rn * (1 - n * 0.6)); }
     groups.sky.material.uniforms.top.value.copy(top);
     groups.sky.material.uniforms.horizon.value.copy(hor);
+    groups.sky.material.uniforms.cloud.value = lerp(0.85, 0.35, n) + 1.4 * rn;
+    groups.sky.material.uniforms.cloudCol.value.set(1, 1, 1).lerp(hexToVec(0xF6D2B0), golden * 0.6).lerp(hexToVec(0x9AA1A8), rn).lerp(hexToVec(0x3A4150), n);
     scene.fog.color.setRGB(hor.x, hor.y, hor.z, T.SRGBColorSpace);
-    lights.hemi.intensity = lerp(0.38, 0.04, n);
+    lights.hemi.intensity = lerp(0.38, 0.04, n) + 0.12 * rn;
     envMats.forEach(m => { m.envMapIntensity = (m.userData.envBase ?? 1) * lerp(1, 0.12, n); });
     const led = s && s.options.led, heaters = s ? s.options.heaters : 0;
     mats.led.emissiveIntensity = lerp(0.35, 2.6, n);
     lights.led1.intensity = lights.led2.intensity = led ? lerp(0, 1.6, n) : 0;
+    mats.ledPool.opacity = 0.42 * n;
+    mats.heatPool.opacity = 0.5 * n;
     mats.heaterGlow.emissiveIntensity = lerp(0.35, 3.5, n);
     lights.heat.intensity = heaters ? lerp(0, 0.8 + heaters * 0.5, n) : 0;
     mats.doorGlass.emissiveIntensity = lerp(0, 0.09, n);
@@ -2226,6 +2402,98 @@ const Scene3D = (() => {
     return hits.length ? hits[0].object.userData.side : null;
   }
 
+  /* ---------- Regen-Demo: Regen, Lamellen schließen, Wasser läuft durch die Pfosten ab ---------- */
+  const RAIN_N = 900, DRIP_N = 36;
+  let rainFx = null, rainTimer = 0;
+  function rainArea() {
+    const s = lastState, W = s.width / 100, D = s.depth / 100;
+    return { x0: -W / 2 - 3, x1: W / 2 + 3, z0: s.mount === 'wall' ? 0.25 : -3, z1: D + 3 };
+  }
+  function roofY(x, z) {
+    const s = lastState, M = MODELS[s.model], W = s.width / 100, D = s.depth / 100;
+    if (Math.abs(x) > W / 2 || z < 0 || z > D) return 0;
+    const closed = M.type === 'glass' || (M.type === 'bio' && anim.louver < 12) || (M.type === 'retract' && anim.extend > 0.85);
+    return closed ? H + M.beam + 0.03 : 0;
+  }
+  function ensureRainFx() {
+    if (rainFx) return rainFx;
+    const pos = new Float32Array(RAIN_N * 6), drops = [];
+    const a = rainArea();
+    for (let i = 0; i < RAIN_N; i++) drops.push({ x: a.x0 + Math.random() * (a.x1 - a.x0), z: a.z0 + Math.random() * (a.z1 - a.z0), y: Math.random() * 9, v: 8 + Math.random() * 3 });
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3));
+    const lines = new T.LineSegments(g, new T.LineBasicMaterial({ color: 0xC6D6E2, transparent: true, opacity: 0, depthWrite: false }));
+    lines.frustumCulled = false;
+    const dpos = new Float32Array(DRIP_N * 3), drips = [];
+    for (let i = 0; i < DRIP_N; i++) drips.push({ age: Math.random(), post: i % 2 });
+    const dg = new T.BufferGeometry(); dg.setAttribute('position', new T.BufferAttribute(dpos, 3));
+    const pts = new T.Points(dg, new T.PointsMaterial({ color: 0xB8D4E6, size: 0.045, transparent: true, opacity: 0, depthWrite: false }));
+    pts.frustumCulled = false;
+    const grp = new T.Group(); grp.add(lines, pts); grp.visible = false; scene.add(grp);
+    rainFx = { grp, lines, pts, drops, drips };
+    return rainFx;
+  }
+  function stepRain(dt) {
+    const fx = rainFx; if (!fx || !fx.grp.visible) return false;
+    const a = rainArea(), s = lastState, M = MODELS[s.model], W = s.width / 100, D = s.depth / 100, pw = M.post;
+    const arr = fx.lines.geometry.attributes.position.array;
+    fx.drops.forEach((d, i) => {
+      d.y -= d.v * dt;
+      if (d.y < roofY(d.x, d.z)) { d.x = a.x0 + Math.random() * (a.x1 - a.x0); d.z = a.z0 + Math.random() * (a.z1 - a.z0); d.y = 7 + Math.random() * 3; }
+      arr.set([d.x, d.y, d.z, d.x, d.y + 0.3, d.z], i * 6);
+    });
+    fx.lines.geometry.attributes.position.needsUpdate = true;
+    fx.lines.material.opacity = 0.55 * anim.rain;
+    // Wasseraustritt an den vorderen Pfosten, sobald das Dach geschlossen ist
+    const flowing = roofY(0, D / 2) > 0;
+    const darr = fx.pts.geometry.attributes.position.array;
+    fx.drips.forEach((p, i) => {
+      p.age += dt * 1.6; if (p.age > 1) { p.age = 0; p.jx = (Math.random() - 0.5) * 0.08; }
+      const x = (p.post ? 1 : -1) * (W / 2 - pw / 2) + (p.jx || 0), t = p.age;
+      darr.set([x, Math.max(0.01, 0.07 - 1.2 * t * t), D + 0.02 + 0.32 * t], i * 3);
+    });
+    fx.pts.geometry.attributes.position.needsUpdate = true;
+    fx.pts.material.opacity = flowing ? 0.85 * anim.rain : 0;
+    return true;
+  }
+  function playRain(onEnd) {
+    if (!ready || !lastState || rainTimer) return false;
+    const fx = ensureRainFx(); fx.grp.visible = true;
+    const M = MODELS[lastState.model];
+    const prevLouver = anim.louver, prevExtend = anim.extend;
+    tween('rain', anim.rain, 1, reducedMotion.matches ? 0 : 1200, v => { anim.rain = v; applySun(); });
+    if (M.type === 'bio') setTimeout(() => tween('louver', anim.louver, 0, 1600, v => { anim.louver = v; setLouverMatrices(v); callbacks.onLouver && callbacks.onLouver(v); }), 700);
+    if (M.type === 'retract') tween('extend', anim.extend, 1, 1600, v => { anim.extend = v; updateFabric(v); });
+    rainTimer = setTimeout(() => {
+      tween('rain', anim.rain, 0, reducedMotion.matches ? 0 : 1500, v => { anim.rain = v; applySun(); }, () => { fx.grp.visible = false; rainTimer = 0; onEnd && onEnd(); });
+      if (M.type === 'bio') tween('louver', anim.louver, prevLouver, 1400, v => { anim.louver = v; setLouverMatrices(v); callbacks.onLouver && callbacks.onLouver(v); });
+      if (M.type === 'retract') tween('extend', anim.extend, prevExtend, 1400, v => { anim.extend = v; updateFabric(v); });
+    }, 7500);
+    return true;
+  }
+
+  /* ---------- Qualitäts-Hotspots: Punkte am Modell, Bildschirmposition je Frame ---------- */
+  function hotspotDefs() {
+    const s = lastState, M = MODELS[s.model], W = s.width / 100, D = s.depth / 100, pw = M.post, fh = M.beam;
+    const list = [];
+    if (M.type === 'bio') list.push({ key: 'louvers', p: [W * 0.18, H + fh + 0.06, D * 0.55] });
+    if (M.type === 'glass') list.push({ key: 'glass', p: [W * 0.18, H + fh + 0.2, D * 0.5] });
+    if (M.type === 'retract') list.push({ key: 'fabric', p: [W * 0.18, H + fh + 0.04, D * 0.55] });
+    list.push({ key: 'drain', p: [W / 2 - pw / 2, 1.15, D - pw / 2 + pw / 2 + 0.01] });
+    list.push({ key: M.zipIntegrated ? 'zipIntegrated' : 'sides', p: [-W * 0.22, H - 0.3, D - pw / 2] });
+    if (M.type !== 'glass') list.push({ key: 'motor', p: [-W / 2 + pw / 2, H + fh / 2, D * 0.35] });
+    return list;
+  }
+  const _hv = { v: null };
+  function projectHotspots() {
+    if (!ready || !lastState) return [];
+    _hv.v = _hv.v || new T.Vector3();
+    const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+    return hotspotDefs().map(d => {
+      const v = _hv.v.set(d.p[0], d.p[1], d.p[2]).project(camera);
+      return { key: d.key, x: (v.x + 1) / 2 * w, y: (1 - v.y) / 2 * h, visible: v.z > -1 && v.z < 1 && Math.abs(v.x) < 1.05 && Math.abs(v.y) < 1.05 };
+    });
+  }
+
   /* ---------- Loop ---------- */
   function loop(now) {
     rafId = requestAnimationFrame(loop);
@@ -2239,9 +2507,11 @@ const Scene3D = (() => {
       active = true;
     }
     else if (!reducedMotion.matches && !sunMode && hasInteracted !== 'dragging' && now - lastInteract > 6000) { idleRotate(dt); active = true; }
+    if (stepRain(dt)) active = true;
     const moved = controls.update();
     if (active || moved || dirty) {
       renderer.render(scene, camera); dirty = false;
+      callbacks.onFrame && callbacks.onFrame();
       perfSample(dt);
     } else { perf.frames = 0; perf.acc = 0; }
   }
@@ -2284,14 +2554,16 @@ const Scene3D = (() => {
     host = el;
     if (!hasWebGL()) throw new Error('no-webgl');
     if (HTMLScriptElement.supports && !HTMLScriptElement.supports('importmap')) throw new Error('no-importmap');
-    const [three, oc, re] = await Promise.all([
+    const [three, oc, re, rb] = await Promise.all([
       import('three'),
       import('three/addons/controls/OrbitControls.js'),
-      import('three/addons/environments/RoomEnvironment.js')
+      import('three/addons/environments/RoomEnvironment.js'),
+      import('three/addons/geometries/RoundedBoxGeometry.js')
     ]);
-    T = three; OrbitControls = oc.OrbitControls; RoomEnvironment = re.RoomEnvironment;
+    T = three; OrbitControls = oc.OrbitControls; RoomEnvironment = re.RoomEnvironment; RoundedBox = rb.RoundedBoxGeometry;
 
-    renderer = new T.WebGLRenderer({ antialias: window.devicePixelRatio < 2, powerPreference: 'high-performance' });
+    const finePointer = matchMedia('(pointer: fine)').matches;          // Desktop: volle Qualität
+    renderer = new T.WebGLRenderer({ antialias: finePointer || window.devicePixelRatio < 2, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = T.PCFSoftShadowMap;
@@ -2490,7 +2762,7 @@ const Scene3D = (() => {
   function setPanelSide(k) { panelSide = k; if (ready) applyHighlight(); }
   function isReady() { return ready; }
 
-  return { init, sync, setStep, setLouver, setExtend, setTime, setDate, setSunMode, setLabels, setPanelSide, makeThumbs, orbitBy, resetView, focusOption, isReady };
+  return { init, sync, setStep, setLouver, setExtend, setTime, setDate, setSunMode, setLabels, setPanelSide, makeThumbs, orbitBy, resetView, focusOption, playRain, projectHotspots, isReady };
 })();
 
 /* =====================================================================
@@ -2690,8 +2962,14 @@ const UI = (() => {
                 <button type="button" data-night="1">${icon('night')}<span data-t="ui.night"></span></button>
               </div>
               <button type="button" class="sun-btn" id="sunBtn" aria-controls="sunPanel" aria-expanded="false">${icon('sunpath')}<span data-t="sun.open"></span></button>
+              <button type="button" class="sun-btn" id="rainBtn">${icon('rain')}<span data-t="ui.rain"></span></button>
             </div>
             <div class="drag-hint" id="dragHint" data-t="${matchMedia('(pointer: coarse)').matches ? 'ui.dragHintTouch' : 'ui.dragHint'}"></div>
+          </div>
+          <div class="hotspots" id="hotspots" aria-label=""></div>
+          <div class="hs-card" id="hsCard" role="dialog" aria-live="polite" hidden>
+            <button type="button" class="hs-close" id="hsClose">${icon('close')}</button>
+            <strong id="hsTitle"></strong><p id="hsText"></p>
           </div>
           <div class="viewer-nav" id="viewerNav" hidden>
             <button type="button" data-orbit="-30" id="navLeft">${icon('rotL')}</button>
@@ -2731,7 +3009,8 @@ const UI = (() => {
     els = {
       app: document.getElementById('app'), progress: $('#progress'), langSwitch: $('#langSwitch'),
       viewer: $('#viewer'), canvasHost: $('#canvasHost'), viewerStatus: $('#viewerStatus'), viewerTop: $('#viewerTop'),
-      dayNight: $('#dayNight'), dragHint: $('#dragHint'), viewerNav: $('#viewerNav'), louverCtl: $('#louverCtl'), louverRange: $('#louverRange'),
+      dayNight: $('#dayNight'), dragHint: $('#dragHint'), viewerNav: $('#viewerNav'), rainBtn: $('#rainBtn'),
+      hotspots: $('#hotspots'), hsCard: $('#hsCard'), hsTitle: $('#hsTitle'), hsText: $('#hsText'), hsClose: $('#hsClose'), louverCtl: $('#louverCtl'), louverRange: $('#louverRange'),
       louverLabel: $('#louverLabel'), louverOut: $('#louverOut'),
       sunBtn: $('#sunBtn'), sunPanel: $('#sunPanel'), sunTimes: $('#sunTimes'), sunMeta: $('#sunMeta'), sunOrientNote: $('#sunOrientNote'), sunPlace: $('#sunPlace'), sunEdit: $('#sunEdit'),
       panelScroll: $('#panelScroll'), panelBody: $('#panelBody'), toast: $('#toast'),
@@ -2921,7 +3200,7 @@ const UI = (() => {
       const chips = (act, cur, allowCustom) => `<div class="chips" role="group">${COLOR_KEYS.map(k => {
         const dis = k === 'custom' && !allowCustom;
         const sw = k === 'custom' ? `<span class="sw">RAL</span>` : `<span class="sw" style="background:${COLORS[k].hex}"></span>`;
-        const sub = k === 'custom' ? '+6 %' : (COLORS[k].ral.startsWith('RAL') ? COLORS[k].ral : '');
+        const sub = k === 'custom' ? `+${Math.round(PRICES.customColorPct * 100)} %` : (COLORS[k].ral.startsWith('RAL') ? COLORS[k].ral : '');
         return `<button type="button" class="chip" data-act="${act}" data-val="${k}" data-fk="${act}-${k}" aria-pressed="${cur === k}" ${dis ? 'disabled' : ''}>${sw}<span>${esc(t('s5.colors.' + k))}</span>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
       }).join('')}</div>`;
       const anyCustom = state.colorFrame === 'custom' || state.colorRoof === 'custom';
@@ -2930,7 +3209,7 @@ const UI = (() => {
         <h2>${esc(t('s5.roof.' + roofType))}</h2>${chips('colorRoof', state.colorRoof, roofType !== 'retract')}
         ${anyCustom ? `<div class="field field-inline"><label for="ralInput">${esc(t('s5.ralLabel'))}</label>
           <input type="text" id="ralInput" data-fk="ralInput" maxlength="20" placeholder="${esc(t('s5.ralPh'))}" value="${esc(state.customRal)}" autocomplete="off"></div>` : ''}
-        <p class="note">${esc(t('s5.customNote'))}</p>`;
+        <p class="note">${esc(t('s5.customNote', { pct: Math.round(PRICES.customColorPct * 100) }))}</p>`;
     },
 
     6: () => {
@@ -3214,6 +3493,51 @@ const UI = (() => {
     r.style.setProperty('--p', ((v - min) / (max - min || 1)) * 100 + '%');
   }
 
+  /* ---------- Qualitäts-Hotspots ---------- */
+  const HS_STEPS = [3, 5, 8];
+  let hsKeys = '', hsOpen = null;
+  function hotspotsVisible() {
+    return viewerState === 'ready' && HS_STEPS.includes(state.step) && !state.view.sunOpen && !(state.step === 8 && state.ui.formMode);
+  }
+  function renderHotspots() {
+    const show = hotspotsVisible();
+    els.hotspots.hidden = !show;
+    if (!show) { closeHotspot(); return; }
+    const list = Scene3D.projectHotspots();
+    const keys = list.map(h => h.key).join(',') + state.lang;
+    if (keys !== hsKeys) {
+      hsKeys = keys;
+      els.hotspots.innerHTML = list.map(h => `<button type="button" class="hs" data-hs="${h.key}" aria-expanded="false" aria-label="${esc(t('hs.' + h.key + '.t'))}"><i>+</i></button>`).join('');
+      if (hsOpen && !list.some(h => h.key === hsOpen)) closeHotspot();
+    }
+    positionHotspots(list);
+  }
+  function positionHotspots(list) {
+    if (els.hotspots.hidden) return;
+    (list || Scene3D.projectHotspots()).forEach(h => {
+      const b = els.hotspots.querySelector(`[data-hs="${h.key}"]`); if (!b) return;
+      b.style.transform = `translate(${h.x.toFixed(1)}px, ${h.y.toFixed(1)}px)`;
+      // nicht unter den Bedienelementen am unteren Bildrand (Regler) oder rechts (Navigation) anzeigen
+      const vw = els.viewer.clientWidth, vh = els.viewer.clientHeight;
+      const free = h.y < vh - 78 && h.y > 60 && h.x > 24 && h.x < vw - 68;
+      b.style.visibility = h.visible && free ? 'visible' : 'hidden';
+    });
+  }
+  function openHotspot(key) {
+    hsOpen = key;
+    const M = MODELS[state.model];
+    els.hsTitle.textContent = t('hs.' + key + '.t');
+    els.hsText.textContent = t('hs.' + key + '.d', { max: M.louverMax || '' });
+    els.hsClose.setAttribute('aria-label', t('ui.hsClose'));
+    els.hsCard.hidden = false;
+    els.hotspots.querySelectorAll('.hs').forEach(b => b.setAttribute('aria-expanded', String(b.dataset.hs === key)));
+    track('hotspot_open', { key, model: state.model });
+  }
+  function closeHotspot() {
+    hsOpen = null; els.hsCard.hidden = true;
+    els.hotspots.querySelectorAll('.hs').forEach(b => b.setAttribute('aria-expanded', 'false'));
+  }
+
   /* ---------- Komfort-Optionen im 3D-Modell zeigen ---------- */
   function showOption(k) {
     if (viewerState !== 'ready') return;
@@ -3239,6 +3563,7 @@ const UI = (() => {
     els.dayNight.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.night === '1') === isNight(v, state.site))));
     els.sunBtn.setAttribute('aria-expanded', String(!!v.sunOpen));
     els.sunBtn.setAttribute('aria-label', t('sun.open'));
+    els.rainBtn.setAttribute('aria-label', t('ui.rain'));
     els.sunPanel.hidden = !v.sunOpen || viewerState !== 'ready';
     if (els.sunPanel.hidden) return;
     els.sunTimes.setAttribute('aria-label', t('sun.time'));
@@ -3302,6 +3627,19 @@ const UI = (() => {
       setSunTime(b.dataset.night === '1' ? tt.evening : tt.day, true);
     });
     els.sunBtn.addEventListener('click', () => openSun(!state.view.sunOpen));
+    els.rainBtn.addEventListener('click', () => {
+      const type = MODELS[state.model].type;
+      if (Scene3D.playRain(() => { els.rainBtn.setAttribute('aria-pressed', 'false'); })) {
+        els.rainBtn.setAttribute('aria-pressed', 'true');
+        toast(t('rain.' + type), 7000);
+        track('rain_demo', { model: state.model });
+      }
+    });
+    els.hotspots.addEventListener('click', e => {
+      const b = e.target.closest('[data-hs]'); if (!b) return;
+      if (hsOpen === b.dataset.hs) closeHotspot(); else openHotspot(b.dataset.hs);
+    });
+    els.hsClose.addEventListener('click', closeHotspot);
     els.viewerNav.addEventListener('click', e => {
       const b = e.target.closest('[data-orbit]'); if (!b) return;
       hideDragHint();
@@ -3463,6 +3801,7 @@ const UI = (() => {
     els.viewerStatus.hidden = st === 'ready';
     els.viewerTop.hidden = st !== 'ready';
     els.viewerNav.hidden = st !== 'ready';
+    renderHotspots();
     els.app.classList.toggle('no3d', st === 'failed');
     renderChrome();
     if (st === 'ready') ensureThumbs();
@@ -3476,7 +3815,7 @@ const UI = (() => {
   }
   function hideDragHint() { els.dragHint && els.dragHint.classList.add('gone'); }
 
-  return { shell, renderChrome, renderPanel, renderPrice, toast, goStep, setViewer, onLouverAnim, hideDragHint, setRangeFill, syncSun, siteLabel, els: () => els };
+  return { shell, renderChrome, renderPanel, renderPrice, toast, goStep, setViewer, onLouverAnim, hideDragHint, setRangeFill, syncSun, siteLabel, renderHotspots, positionHotspots, els: () => els };
 })();
 
 function sceneLabels() {
@@ -3491,6 +3830,7 @@ function render() {
   UI.renderPanel();
   UI.renderPrice();
   Scene3D.sync(state);
+  UI.renderHotspots();
   scheduleHash();
   postHeight();
 }
@@ -3715,6 +4055,7 @@ const Lead = (() => {
       },
       onLouver: UI.onLouverAnim,
       onTime: (h) => { state.view.time = h; UI.syncSun(); },
+      onFrame: () => UI.positionHotspots(),
       onInteract: UI.hideDragHint,
       onContextLost: () => UI.setViewer('failed')
     });
@@ -3722,6 +4063,11 @@ const Lead = (() => {
     Scene3D.sync(state);
     Scene3D.setStep(state.step);
     Scene3D.setDate(state.view.date);
+    // Direkt auf Schritt 7 geladen (z. B. geteilter Link): wie beim Weiterklicken in den Abend wechseln
+    if (state.step === 7 && !isNight(state.view, state.site)) {
+      state.view.prevTime = state.view.time; state.view.autoNight = true;
+      state.view.time = sunTimes(state.view.date, state.site).evening;
+    }
     Scene3D.setTime(state.view.time);
     UI.setViewer('ready');
     setTimeout(UI.hideDragHint, 7000);

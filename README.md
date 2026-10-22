@@ -54,13 +54,22 @@ Alle Einstellungen stehen oben im `<script>`-Block unter **1. CONFIG**.
 - Schritt 7 (Komfort): Beim Zubuchen von LED, Heizstrahler, Sensor, Solar oder Lichtband fährt die Kamera kurz an die Stelle, schwenkt langsam mit und fährt danach zurück. Greift der Nutzer währenddessen ein, übernimmt er die Kamera.
 - Schatten bleiben auch auf schwächeren Geräten an; bei Bedarf wird nur die Auflösung gesenkt.
 
+## Darstellung und Vorführung
+
+- **Material:** Aluprofile mit leicht gerundeten Kanten und pulverbeschichteter Oberfläche (matte Struktur, leichter Klarlack-Glanz), gewölbtes Lamellenprofil, Fußplatten mit Schrauben, Rinnen im Rahmen, Wasseraustritt an den Pfosten, ZIP-Führungsschienen. Kontaktschatten unter Pfosten, Möbeln und Pflanzen.
+- **Qualitäts-Hotspots** (Schritte 3, 5, 8): Punkte am Modell zu Lamellen, Entwässerung, ZIP/Seiten und Motor/Automatik; Texte in `I18N.*.hs`.
+- **Regen-Demo** (Button „Regen“): Himmel zieht zu, Regen fällt, die Lamellen schließen (Tuchdach fährt aus), Wasser tritt an den Pfosten aus; danach zurück zum vorherigen Zustand. Texte in `I18N.*.rain`.
+- **Nacht:** Lichtteppich der LED und Glühen der Heizstrahler am Boden. Ein direkt auf Schritt 7 geöffneter Link startet ebenfalls im Abend.
+- **Umgebung:** Hauswand mit Faschen und Fensterbänken, Terrasse mit Randsteinen, Lounge mit Polstern und Zierkissen, Pflanzkübel mit Bäumchen, Hecke, Wolken.
+- **Qualitätsstufen:** Auf dem Desktop Kantenglättung und Schattenauflösung 2048, auf Handys 1024; Schatten bleiben immer an.
+
 ## Tracking
 
 `track(event, params)` schreibt in `window.dataLayer` (GA4/GTM), ruft `fbq('trackCustom', …)` auf und meldet im iframe an die Elternseite. Events:
 
 - `config_start`, `config_step_1` … `config_step_8` (Schritt erreicht), jeweils mit `model`, `price_low`, `price_high`, `value`, `purpose`, `mount`, `lang`
 - `lead_quote`, `lead_showroom` (zusätzlich Meta-Standard-Event `Lead` mit Wert)
-- `sun_view` (Sonnenverlauf geöffnet), `site_set` (Adresse oder Standort gesetzt)
+- `sun_view` (Sonnenverlauf geöffnet), `site_set` (Adresse oder Standort gesetzt), `rain_demo`, `hotspot_open`
 
 Meta CAPI braucht einen Server: über den Webhook (Make/Zapier) oder GTM Server-Side.
 
