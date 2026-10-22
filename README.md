@@ -48,9 +48,10 @@ Alle Einstellungen stehen oben im `<script>`-Block unter **1. CONFIG**.
 
 ## Bedienung der 3D-Ansicht
 
-- Ziehen: drehen · Mausrad / zwei Finger: zoomen · Rechtsklick / zwei Finger: verschieben
+- Ziehen: drehen · Mausrad: zur Mausposition hinfahren (bis unter das Dach) · Rechtsklick / zwei Finger: verschieben
+- Man kann auf Augenhöhe gehen und von unten ins Dach schauen; Boden und Hauswand werden nicht durchdrungen.
 - Buttons rechts: nach links / rechts drehen, Ansicht zurücksetzen
-- Schritt 7 (Komfort): Beim Zubuchen von LED, Heizstrahler, Sensor, Solar oder Lichtband fährt die Kamera kurz an die Stelle und danach zurück.
+- Schritt 7 (Komfort): Beim Zubuchen von LED, Heizstrahler, Sensor, Solar oder Lichtband fährt die Kamera kurz an die Stelle, schwenkt langsam mit und fährt danach zurück. Greift der Nutzer währenddessen ein, übernimmt er die Kamera.
 - Schatten bleiben auch auf schwächeren Geräten an; bei Bedarf wird nur die Auflösung gesenkt.
 
 ## Tracking
@@ -66,7 +67,7 @@ Meta CAPI braucht einen Server: über den Webhook (Make/Zapier) oder GTM Server-
 ## Sonnenverlauf
 
 - **Rechnung:** NOAA-Sonnenstandsalgorithmus (Höhe/Azimut ca. ±0,01°, Auf-/Untergang ca. ±1 min), inklusive Refraktion. Die Sommer- und Winterzeit ergibt sich automatisch aus der Zeitzone des Landes (LU, BE, FR, DE). Abgeglichen mit Referenzwerten für Luxemburg-Stadt am 21.06.2026: Aufgang 5:28, wahrer Mittag 13:37 bei 63,8° Sonnenhöhe, Untergang 21:46.
-- **Darstellung:** immer am 21. Juni (längster Tag), Zeitpunkte 12, 16 und 20 Uhr (`SUN_TIMES`). Die Sonne wirkt nur über Licht und Schatten; ein Kompasskreis am Boden zeigt die Himmelsrichtungen und mit einer Markierung, aus welcher Richtung die Sonne kommt. Das 3D-Haus ist symbolisch; Sonnenstand und Ausrichtung entsprechen dem echten Standort.
+- **Darstellung:** immer am 21. Juni (längster Tag), Zeitpunkte 10, 12, 16 und 20 Uhr (`SUN_TIMES`). Die Sonne wirkt nur über Licht und Schatten; ein Kompasskreis am Boden zeigt die Himmelsrichtungen und mit einer Markierung, aus welcher Richtung die Sonne kommt. Das 3D-Haus ist symbolisch; Sonnenstand und Ausrichtung entsprechen dem echten Standort.
 - **Ort:** Adresssuche über OpenStreetMap Nominatim oder Gerätestandort. Ohne Adresse rechnet der Konfigurator mit `DEFAULT_SITE`.
 - **Ausrichtung:** Gebäudegrundriss aus OpenStreetMap (Overpass). Der Besucher tippt auf die Hauswand an der Terrasse, die Außennormale dieser Wand ergibt den Azimut gradgenau. Ohne Grundriss: 8 Schnellwahl-Richtungen plus Feinregler 0–359°.
 - **Nicht berücksichtigt:** Gelände, Bäume und Nachbargebäude. Darauf wird der Besucher im Konfigurator hingewiesen.

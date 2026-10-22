@@ -667,7 +667,7 @@ function sunTimes(dateStr, site) {
 const todayStr = (site) => new Intl.DateTimeFormat('en-CA', { timeZone: siteTz(site) }).format(new Date());
 /* Sonnenverlauf immer am längsten Tag des Jahres (21. Juni) zu drei Zeitpunkten */
 const summerDate = (site) => `${todayStr(site).slice(0, 4)}-06-21`;
-const SUN_TIMES = [12, 16, 20];
+const SUN_TIMES = [10, 12, 16, 20];
 const nightFactor = (alt) => Math.min(1, Math.max(0, (4 - alt) / 10));
 const isNight = (view, site) => nightFactor(solar(view.time, view.date, site).alt) > 0.5;
 
@@ -684,7 +684,7 @@ const I18N = {
       loading: 'Chargement de l’aperçu 3D…',
       noWebgl: 'Votre navigateur ne peut pas afficher l’aperçu 3D. Le configurateur fonctionne quand même : vos choix et votre prix restent à jour.',
       day: 'Jour', night: 'Soirée', louvers: 'Ouvrir les lames', extend: 'Déployer le toit',
-      dragHint: 'Glisser : tourner · clic droit : déplacer · molette : zoom', dragHintTouch: 'Glisser : tourner · 2 doigts : zoom et déplacer',
+      dragHint: 'Glisser : tourner · clic droit : déplacer · molette : avancer vers le pointeur', dragHintTouch: 'Glisser : tourner · 2 doigts : zoom et déplacer',
       rotLeft: 'Tourner vers la gauche', rotRight: 'Tourner vers la droite', resetView: 'Recentrer la vue', chooseFirst: 'Choisissez d’abord une option ci-dessus.',
       edit: 'Modifier', none: 'Aucun', more: 'Plus', less: 'Moins', recommended: 'Recommandé pour vous',
       from: 'dès {price}', demoPrices: 'Prix démo',
@@ -869,7 +869,7 @@ const I18N = {
       loading: '3D-Vorschau wird geladen…',
       noWebgl: 'Ihr Browser kann die 3D-Vorschau nicht anzeigen. Der Konfigurator funktioniert trotzdem: Auswahl und Preis bleiben aktuell.',
       day: 'Tag', night: 'Abend', louvers: 'Lamellen öffnen', extend: 'Dach ausfahren',
-      dragHint: 'Ziehen: drehen · Rechtsklick: verschieben · Mausrad: zoomen', dragHintTouch: 'Ziehen: drehen · 2 Finger: zoomen & verschieben',
+      dragHint: 'Ziehen: drehen · Rechtsklick: verschieben · Mausrad: zur Maus hinfahren', dragHintTouch: 'Ziehen: drehen · 2 Finger: zoomen & verschieben',
       rotLeft: 'Nach links drehen', rotRight: 'Nach rechts drehen', resetView: 'Ansicht zurücksetzen', chooseFirst: 'Bitte wählen Sie zuerst eine Option.',
       edit: 'Ändern', none: 'Keine', more: 'Mehr', less: 'Weniger', recommended: 'Empfohlen für Sie',
       from: 'ab {price}', demoPrices: 'Demo-Preise',
@@ -2145,6 +2145,9 @@ const Scene3D = (() => {
       const dx = x - t.x, dy = y - t.y, dz = z - t.z;
       t.set(x, y, z); camera.position.x += dx; camera.position.y += dy; camera.position.z += dz;
     }
+    // Kamera nie unter den Boden und nie hinter die Hauswand
+    if (camera.position.y < 0.3) camera.position.y = 0.3;
+    if (lastState.mount === 'wall' && camera.position.z < 0.35) camera.position.z = 0.35;
   }
   /* Ansicht per Button um die Pergola drehen (Grad, positiv = nach rechts) */
   function orbitBy(deg) {
@@ -2168,13 +2171,11 @@ const Scene3D = (() => {
     camTween = { t0: performance.now(), ms, fromPos: camera.position.clone(), fromT: controls.target.clone(), toPos: pos.clone(), toT: target.clone(), onDone };
   }
 
-  /* Komfort-Optionen: kurz heranfahren und zeigen, was sich ändert, danach zurück zur Schritt-Ansicht */
-  const LIMITS = { minDistance: 3, maxPolarAngle: 1.42 };
-  let focusTimer = 0;
-  function relaxLimits(on) {
-    controls.minDistance = on ? 0.8 : LIMITS.minDistance;
-    controls.maxPolarAngle = on ? 2.2 : LIMITS.maxPolarAngle;     // von unten in das Dach schauen
-  }
+  /* Komfort-Optionen: kurz heranfahren und zeigen, was sich ändert, danach zurück zur Schritt-Ansicht.
+     Während der Nahaufnahme bewegt sich die Kamera langsam weiter (kein „stehendes“ Bild).
+     Greift der Nutzer ein, übernimmt er die Kamera; die Fahrt zurück entfällt. */
+  let focusTimer = 0, focusDrift = 0;
+  function endFocus() { clearTimeout(focusTimer); focusDrift = 0; }
   function focusOption(kind, onEnd) {
     if (!ready || !lastState) return;
     const s = lastState, M = MODELS[s.model];
@@ -2188,13 +2189,14 @@ const Scene3D = (() => {
       sensor:   { pos: V(W / 2 + 1.5, H + 1.2, D + 2.0), target: V(W / 2 - pw / 2, H + fh + 0.2, D - pw / 2) }
     };
     const p = poses[kind]; if (!p) return;
-    clearTimeout(focusTimer);
-    relaxLimits(true);
+    endFocus();
     hasInteracted = true; lastInteract = performance.now();
     flyToPose(p.pos, p.target, 1000, () => {
+      focusDrift = reducedMotion.matches ? 0 : 1;
       focusTimer = setTimeout(() => {
-        flyTo(step, 1100, () => { relaxLimits(false); onEnd && onEnd(); });
-      }, reducedMotion.matches ? 1800 : 2400);
+        focusDrift = 0;
+        flyTo(step, 1100, () => { onEnd && onEnd(); });
+      }, reducedMotion.matches ? 1800 : 2600);
     });
   }
   function stepCam(now) {
@@ -2230,6 +2232,12 @@ const Scene3D = (() => {
     const dt = Math.min(0.05, (now - (lastT || now)) / 1000); lastT = now;
     let active = stepTweens(now);
     if (camTween) active = stepCam(now) || active;
+    else if (focusDrift) {
+      const off = camera.position.clone().sub(controls.target);
+      off.applyAxisAngle(new T.Vector3(0, 1, 0), 0.09 * dt);         // langsames Mitschwenken während der Nahaufnahme
+      camera.position.copy(controls.target).add(off);
+      active = true;
+    }
     else if (!reducedMotion.matches && !sunMode && hasInteracted !== 'dragging' && now - lastInteract > 6000) { idleRotate(dt); active = true; }
     const moved = controls.update();
     if (active || moved || dirty) {
@@ -2308,12 +2316,13 @@ const Scene3D = (() => {
     controls.enablePan = true;              // Rechtsklick / zwei Finger: verschieben
     controls.screenSpacePanning = true;
     controls.panSpeed = 0.8;
-    controls.minDistance = 3;
+    controls.minDistance = 0.6;             // bis unter das Dach hineinfahren
+    controls.zoomToCursor = true;           // Mausrad fährt dorthin, wo die Maus zeigt
     controls.maxDistance = 24;
     controls.minPolarAngle = 0.15;
-    controls.maxPolarAngle = 1.42;          // nie unter den Boden
+    controls.maxPolarAngle = 2.0;           // auch von unten ins Dach schauen; Boden/Hauswand siehe clampTarget()
     controls.rotateSpeed = 0.7;
-    controls.addEventListener('start', () => { camTween = null; clearTimeout(focusTimer); hasInteracted = 'dragging'; lastInteract = performance.now(); callbacks.onInteract && callbacks.onInteract(); });
+    controls.addEventListener('start', () => { camTween = null; endFocus(); hasInteracted = 'dragging'; lastInteract = performance.now(); callbacks.onInteract && callbacks.onInteract(); });
     controls.addEventListener('end', () => { hasInteracted = true; lastInteract = performance.now(); });
     controls.addEventListener('change', () => { clampTarget(); dirty = true; });
 
@@ -2370,8 +2379,7 @@ const Scene3D = (() => {
     step = n;
     pickEnabled = n === 6;
     if (!ready) return;
-    clearTimeout(focusTimer);
-    relaxLimits(false);
+    endFocus();
     if (sunMode) setSunMode(false, false);
     if (groups.dims) groups.dims.visible = n === 3;
     if (n !== 6) { hoverSide = null; panelSide = null; }
