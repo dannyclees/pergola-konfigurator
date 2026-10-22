@@ -58,8 +58,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus { outline: none; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
-.blur { filter: blur(7px); user-select: none; -webkit-user-select: none; pointer-events: none; }
 .price-value.locked { cursor: pointer; }
+/* Gesperrter Preis: ruhiger Hinweis statt unscharfer Zahl */
+.price-lock { display: inline-flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 600; letter-spacing: -.01em; color: var(--text); }
+.price-lock svg { width: 18px; height: 18px; flex: none; color: var(--accent); stroke-width: 2; }
+.big-price .price-lock { font-size: 26px; gap: 10px; }
+.big-price .price-lock svg { width: 24px; height: 24px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 [hidden] { display: none !important; }
 
@@ -708,7 +712,8 @@ const I18N = {
       note: 'Prix indicatif TTC, pose comprise. Offre ferme après métré gratuit.',
       fromNote: 'La fourchette détaillée vous parvient avec votre devis par e-mail.',
       live: 'Prix indicatif mis à jour : {price}',
-      blurNote: 'Votre prix personnalisé lors du conseil gratuit.',
+      blurNote: 'Présenté lors de votre conseil gratuit avec CG Atelier.',
+      lockedLabel: 'Votre prix', lockedValue: 'Prix personnalisé',
       blurHint: 'CG Atelier vous présente votre prix personnellement. Demandez votre conseil à la dernière étape.',
       blurHint8: 'Demandez votre conseil gratuit ci-dessous : vous y recevrez votre prix personnalisé.',
       hiddenSr: 'Prix communiqué lors du conseil'
@@ -907,7 +912,8 @@ const I18N = {
       note: 'Richtpreis inkl. Montage und MwSt. Verbindliches Angebot nach kostenlosem Aufmaß.',
       fromNote: 'Die genaue Preisspanne erhalten Sie mit Ihrem Richtangebot per E-Mail.',
       live: 'Richtpreis aktualisiert: {price}',
-      blurNote: 'Ihr persönlicher Preis im kostenlosen Beratungsgespräch.',
+      blurNote: 'Im kostenlosen Beratungsgespräch mit CG Atelier.',
+      lockedLabel: 'Ihr Preis', lockedValue: 'Persönlicher Preis',
       blurHint: 'Ihren Preis bespricht CG Atelier persönlich mit Ihnen. Fordern Sie im letzten Schritt Ihre Beratung an.',
       blurHint8: 'Fordern Sie unten Ihre kostenlose Beratung an. Dort erhalten Sie Ihren persönlichen Preis.',
       hiddenSr: 'Preis im Beratungsgespräch'
@@ -1112,6 +1118,7 @@ function dir16(az) { return t('compass16')[Math.round(((az % 360) + 360) % 360 /
 function modelLabel(k) { const m = t('models.' + k); return `${m.brand.split(' · ')[0]} ${m.name}`; }
 
 const ICON = {
+  lock: '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
   living: '<path d="M4 11V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3"/><path d="M2 11h20v6H2z"/><path d="M4 17v2M20 17v2"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   yearround: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
@@ -1314,19 +1321,14 @@ function fromPrice(model) {
   return calcPrice(s).low;
 }
 function priceText(low, high) { return `${t('price.prefix')} ${fmtInt(low)} – ${fmtInt(high)} €`; }
-/* Blur-Modus: Preise erst nach der Anfrage sichtbar. Im DOM stehen nur Platzhalterziffern, nie der echte Wert. */
+/* Gesperrter Preis ('blur'): keine Zahl und keine Platzhalterziffern. Der Gesamtpreis erscheint als ruhiger Hinweis
+   „Persönlicher Preis“ mit Schloss, Einzelpreise (Optionen, Seiten, Modelle) entfallen. Im DOM steht nie ein Wert. */
 const priceLocked = () => PRICE_MODE === 'blur' && !(PRICE_REVEAL_AFTER_LEAD && state.unlocked);
-const fakeDigits = (str) => str.replace(/\d/g, '8');
-function moneyHTML(n) {
-  if (!priceLocked()) return esc(fmtEur(n));
-  return `<span class="blur" aria-hidden="true">${esc(fakeDigits(fmtEur(n)))}</span><span class="sr-only">${esc(t('price.hiddenSr'))}</span>`;
-}
-function rangeHTML(low, high) {
-  if (!priceLocked()) return esc(priceText(low, high));
-  return `${esc(t('price.prefix'))} <span class="blur" aria-hidden="true">${esc(fakeDigits(`${fmtInt(low)} – ${fmtInt(high)}`))}</span> €<span class="sr-only">${esc(t('price.hiddenSr'))}</span>`;
-}
-/* i18n-Text mit {price}-Platzhalter, Preis ggf. unscharf */
-function tMoney(key, n) { return esc(t(key, { price: '\u0001' })).replace('\u0001', moneyHTML(n)); }
+const lockedHTML = () => `<span class="price-lock">${icon('lock')}<span>${esc(t('price.lockedValue'))}</span></span>`;
+function moneyHTML(n) { return priceLocked() ? '' : esc(fmtEur(n)); }
+function rangeHTML(low, high) { return priceLocked() ? lockedHTML() : esc(priceText(low, high)); }
+/* i18n-Text mit {price}-Platzhalter; bei gesperrtem Preis entfällt der ganze Text */
+function tMoney(key, n) { return priceLocked() ? '' : esc(t(key, { price: '\u0001' })).replace('\u0001', moneyHTML(n)); }
 
 /* Selbsttest: Kontrollbeispiel muss exakt stimmen */
 function selfTest() {
@@ -3515,8 +3517,8 @@ const UI = (() => {
     els.nextBtn.hidden = !!formOpen || state.step === 9;
     els.nextLbl.textContent = state.step === 8 ? t('ui.getQuote') : t('ui.next');
     els.nextBtn.setAttribute('aria-disabled', String(state.step === 1 && !state.purpose));
-    els.priceLabel.textContent = t('price.label');
-    els.demoBadge.hidden = !(SHOW_DEMO_BADGE && /demo|schaetzung/.test(PRICES.pricesVersion));
+    els.priceLabel.textContent = priceLocked() ? t('price.lockedLabel') : t('price.label');
+    els.demoBadge.hidden = priceLocked() || !(SHOW_DEMO_BADGE && /demo|schaetzung/.test(PRICES.pricesVersion));
     els.demoBadge.textContent = t('ui.demoPrices');
     els.priceNote.textContent = PRICE_MODE === 'from' ? t('price.fromNote') : priceLocked() ? t('price.blurNote') : t('price.note');
     els.priceValue.classList.toggle('locked', priceLocked());
@@ -3632,8 +3634,8 @@ const UI = (() => {
               </span>
               <span class="mc-benefit">${esc(mt.benefit)}</span>
               <span class="mc-specs">${mt.specs.map(x => `<span class="mc-spec">${esc(x)}</span>`).join('')}</span>
-              <span class="mc-foot"><span class="mc-price">${tMoney('ui.from', pr)}</span>
-                ${fits ? '' : `<span class="mc-fit">${esc(t('roof.fit', { w: fmtM(fit.w), d: fmtM(fit.d) }))}</span>`}</span>
+              ${priceLocked() && fits ? '' : `<span class="mc-foot">${priceLocked() ? '' : `<span class="mc-price">${tMoney('ui.from', pr)}</span>`}
+                ${fits ? '' : `<span class="mc-fit">${esc(t('roof.fit', { w: fmtM(fit.w), d: fmtM(fit.d) }))}</span>`}</span>`}
             </button>`;
           }).join('')}
         </div>`;
@@ -3664,7 +3666,7 @@ const UI = (() => {
           const v = state.sides[k];
           const cost = sideCost(state, k);
           return `<div class="side-row" data-side-row="${k}">
-            <div class="side-head"><strong>${esc(t('side.' + k))}</strong><span>${fmtM(len)}</span><span class="side-price">${cost ? '+ ' + moneyHTML(Math.round(cost)) : ''}</span></div>
+            <div class="side-head"><strong>${esc(t('side.' + k))}</strong><span>${fmtM(len)}</span><span class="side-price">${cost && !priceLocked() ? '+ ' + moneyHTML(Math.round(cost)) : ''}</span></div>
             <div class="seg" role="group" aria-label="${esc(t('side.' + k))}">
               ${['open', 'zip', 'glass'].map(o => `<button type="button" class="accent" data-act="side" data-side="${k}" data-val="${o}" data-fk="side-${k}-${o}" aria-pressed="${v === o}">${esc(t('s6.opt.' + o))}</button>`).join('')}
             </div></div>`;
@@ -3683,13 +3685,13 @@ const UI = (() => {
       const row = (key, price, enabled, offText) => `
         <div class="opt-row ${enabled ? '' : 'disabled'}">
           <div class="opt-text"><strong id="opt-${key}">${esc(t(`s7.${key}.t`))}</strong><span>${esc(t(`s7.${key}.d`))}</span>${!enabled && offText ? `<em>${esc(offText)}</em>` : ''}</div>
-          <span class="opt-price">+ ${moneyHTML(price)}</span>
+          ${priceLocked() ? '' : `<span class="opt-price">+ ${moneyHTML(price)}</span>`}
           <span class="switch-hit"><button type="button" class="switch" role="switch" aria-checked="${!!o[key] && enabled}" aria-labelledby="opt-${key}" data-act="toggle" data-opt="${key}" data-fk="opt-${key}" ${enabled ? '' : 'disabled'}></button></span>
         </div>`;
       return `${head(7)}
         ${row('led', ledPrice(state), true)}
         <div class="opt-row">
-          <div class="opt-text"><strong id="opt-heaters">${esc(t('s7.heaters.t'))}</strong><span>${esc(t('s7.heaters.d'))}</span><em>${tMoney('s7.heaters.each', PRICES.heaterEach)}</em></div>
+          <div class="opt-text"><strong id="opt-heaters">${esc(t('s7.heaters.t'))}</strong><span>${esc(t('s7.heaters.d'))}</span>${priceLocked() ? '' : `<em>${tMoney('s7.heaters.each', PRICES.heaterEach)}</em>`}</div>
           <div class="stepper" role="group" aria-labelledby="opt-heaters">
             <button type="button" data-act="heaters" data-val="-1" data-fk="heat-minus" aria-label="${esc(t('ui.less'))}" ${o.heaters <= 0 ? 'disabled' : ''}>${icon('minus')}</button>
             <output aria-live="polite">${o.heaters}</output>

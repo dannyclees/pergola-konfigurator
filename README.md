@@ -9,7 +9,7 @@ Alle Einstellungen stehen oben im `<script>`-Block unter **1. CONFIG**.
 | Was | Wo | Hinweis |
 |---|---|---|
 | Preise | `const PRICES = { … }` | Grundpreis + €/m² je Modell, Optionen, Montage, Spanne (`rangeLow`/`rangeHigh`), Rundung. Zurzeit Schätzwerte aus der Marktrecherche (siehe unten). Sobald echte Preise drinstehen, `pricesVersion` ändern (ohne „schaetzung“), dann verschwindet das Etikett „Demo-Preise“. |
-| Preisanzeige | `const PRICE_MODE`, `PRICE_REVEAL_AFTER_LEAD` | `'blur'` (Standard): alle Preise unscharf, den persönlichen Preis gibt es im Beratungsgespräch (`PRICE_REVEAL_AFTER_LEAD = false`). Mit `true` wird der Preis nach dem Absenden der Anfrage freigeschaltet. `'range'`: Spanne live sichtbar. `'from'`: nur „ab“-Preis. Im Blur-Modus stehen im Quelltext nur Platzhalterziffern, nie der echte Preis; im Lead steht er vollständig. |
+| Preisanzeige | `const PRICE_MODE`, `PRICE_REVEAL_AFTER_LEAD` | `'blur'` (Standard): keine Zahlen sichtbar. Die Preisleiste zeigt „Persönlicher Preis“ mit Schloss, Einzelpreise bei Optionen, Seiten und Modellen entfallen; den Preis gibt es im Beratungsgespräch (`PRICE_REVEAL_AFTER_LEAD = false`). Mit `true` wird der Preis nach dem Absenden der Anfrage freigeschaltet. `'range'`: Spanne live sichtbar. `'from'`: nur „ab“-Preis. Im gesperrten Modus steht kein Preis auf der Seite; im Lead steht er vollständig. |
 | Maßgrenzen, Pfosten, Lamellenwinkel, Solar | `const MODELS = { … }` | Je Montageart eine Liste erlaubter Bereiche in cm (z. B. Varia Wandanbau 4,50 × 7,20 m **oder** 7,20 × 4,50 m). `midW`/`midD`: ab welcher Breite/Tiefe zusätzliche Pfosten kommen. |
 | Empfehlung je Nutzungszweck | `const RECOMMEND` | |
 | Farben | `const COLORS` | `hex` = Darstellung in 3D und auf dem Farbchip. |
