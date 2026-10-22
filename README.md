@@ -9,7 +9,7 @@ Alle Einstellungen stehen oben im `<script>`-Block unter **1. CONFIG**.
 | Was | Wo | Hinweis |
 |---|---|---|
 | Preise | `const PRICES = { … }` | Grundpreis + €/m² je Modell, Optionen, Montage, Spanne (`rangeLow`/`rangeHigh`), Rundung. Zurzeit Schätzwerte aus der Marktrecherche (siehe unten). Sobald echte Preise drinstehen, `pricesVersion` ändern (ohne „schaetzung“), dann verschwindet das Etikett „Demo-Preise“. |
-| Preisanzeige | `const PRICE_MODE` | `'blur'` (Standard): alle Preise unscharf, freigeschaltet erst nach dem Absenden der Anfrage. Die Freischaltung bleibt im Browser gespeichert. `'range'`: Spanne live sichtbar. `'from'`: nur „ab“-Preis. Im Blur-Modus stehen im Quelltext der Seite nur Platzhalterziffern, nie der echte Preis. |
+| Preisanzeige | `const PRICE_MODE`, `PRICE_REVEAL_AFTER_LEAD` | `'blur'` (Standard): alle Preise unscharf, den persönlichen Preis gibt es im Beratungsgespräch (`PRICE_REVEAL_AFTER_LEAD = false`). Mit `true` wird der Preis nach dem Absenden der Anfrage freigeschaltet. `'range'`: Spanne live sichtbar. `'from'`: nur „ab“-Preis. Im Blur-Modus stehen im Quelltext nur Platzhalterziffern, nie der echte Preis; im Lead steht er vollständig. |
 | Maßgrenzen, Pfosten, Lamellenwinkel, Solar | `const MODELS = { … }` | Je Montageart eine Liste erlaubter Bereiche in cm (z. B. Varia Wandanbau 4,50 × 7,20 m **oder** 7,20 × 4,50 m). `midW`/`midD`: ab welcher Breite/Tiefe zusätzliche Pfosten kommen. |
 | Empfehlung je Nutzungszweck | `const RECOMMEND` | |
 | Farben | `const COLORS` | `hex` = Darstellung in 3D und auf dem Farbchip. |
@@ -59,6 +59,7 @@ Meta CAPI braucht einen Server: über den Webhook (Make/Zapier) oder GTM Server-
 ## Sonnenverlauf
 
 - **Rechnung:** NOAA-Sonnenstandsalgorithmus (Höhe/Azimut ca. ±0,01°, Auf-/Untergang ca. ±1 min), inklusive Refraktion. Die Sommer- und Winterzeit ergibt sich automatisch aus der Zeitzone des Landes (LU, BE, FR, DE). Abgeglichen mit Referenzwerten für Luxemburg-Stadt am 21.06.2026: Aufgang 5:28, wahrer Mittag 13:37 bei 63,8° Sonnenhöhe, Untergang 21:46.
+- **Darstellung:** immer am 21. Juni (längster Tag), Zeitpunkte 12, 16 und 20 Uhr (`SUN_TIMES`). Das 3D-Haus ist symbolisch; Sonnenstand und Ausrichtung entsprechen dem echten Standort.
 - **Ort:** Adresssuche über OpenStreetMap Nominatim oder Gerätestandort. Ohne Adresse rechnet der Konfigurator mit `DEFAULT_SITE`.
 - **Ausrichtung:** Gebäudegrundriss aus OpenStreetMap (Overpass). Der Besucher tippt auf die Hauswand an der Terrasse, die Außennormale dieser Wand ergibt den Azimut gradgenau. Ohne Grundriss: 8 Schnellwahl-Richtungen plus Feinregler 0–359°.
 - **Nicht berücksichtigt:** Gelände, Bäume und Nachbargebäude. Darauf wird der Besucher im Konfigurator hingewiesen.

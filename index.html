@@ -136,13 +136,10 @@ button { cursor: pointer; }
   display: flex; flex-direction: column; gap: 8px;
 }
 .sun-row { display: flex; align-items: center; gap: 8px; }
-.sun-row input[type="range"] { flex: 1; min-width: 0; }
-.sun-row output { min-width: 62px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
 .sun-row .seg { flex: 1; min-width: 0; }
 .sun-row .seg button { min-height: 40px; font-size: 14px; padding: 4px 6px; }
 .sun-row select { height: 44px; max-width: 46%; border: 1px solid var(--field); border-radius: 10px; background: var(--card); padding: 0 8px; font-size: 15px; }
 .sun-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
-.sun-row input[type="date"] { height: 44px; width: 150px; flex: 0 0 auto; border: 1px solid var(--field); border-radius: 10px; background: var(--card); padding: 0 8px; font-size: 15px; }
 .sun-place { align-items: center; }
 .sun-meta > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sun-row .seg button { white-space: nowrap; }
@@ -166,8 +163,6 @@ button { cursor: pointer; }
 .fine-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
 .fine-row label { font-size: 15px; font-weight: 600; white-space: nowrap; }
 .fine-row output { min-width: 92px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; font-size: 15px; }
-@media (max-width: 400px) { .sun-row input[type="date"] { width: 118px; font-size: 13px; } .sun-row .seg button { font-size: 12px; } }
-.icon-btn.round { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: #fff; border-color: var(--accent); }
 .compass { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .compass button { min-height: 48px; border: 1px solid var(--line); background: var(--card); border-radius: 10px; font-size: 15px; font-weight: 600; color: var(--text); }
 .compass button small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
@@ -513,6 +508,8 @@ const REFERENCE_PRICES = {
    'range' = Spanne live sichtbar
    'from'  = nur „ab“-Preis je Modell, Spanne erst nach E-Mail */
 const PRICE_MODE = 'blur';
+/* Blur-Modus: Preis nach dem Absenden der Anfrage zeigen? false = Preis gibt es nur im Beratungsgespräch */
+const PRICE_REVEAL_AFTER_LEAD = false;
 /* Kleines Etikett „Demo-Preise“ neben dem Preis anzeigen (vor Livegang auf false) */
 const SHOW_DEMO_BADGE = true;    // erscheint, solange pricesVersion „demo“ oder „schaetzung“ enthält
 
@@ -642,13 +639,12 @@ function sunTimes(dateStr, site) {
   const cosH = Math.cos(90.833 * DEG) / (Math.cos(lat * DEG) * Math.cos(decl * DEG)) - Math.tan(lat * DEG) * Math.tan(decl * DEG);
   const H = Math.acos(Math.max(-1, Math.min(1, cosH))) / DEG;
   const rise = noon - H / 15, set = noon + H / 15;
-  return { rise, set, noon, day: noon + 1.5, evening: set + 1.0 };
+  return { rise, set, noon, day: 16, evening: set + 1.0 };
 }
 const todayStr = (site) => new Intl.DateTimeFormat('en-CA', { timeZone: siteTz(site) }).format(new Date());
-function quickDates(site) {
-  const today = todayStr(site), y = today.slice(0, 4);
-  return { today, jun: `${y}-06-21`, mar: `${y}-03-20`, dec: `${y}-12-21` };
-}
+/* Sonnenverlauf immer am längsten Tag des Jahres (21. Juni) zu drei Zeitpunkten */
+const summerDate = (site) => `${todayStr(site).slice(0, 4)}-06-21`;
+const SUN_TIMES = [12, 16, 20];
 const nightFactor = (alt) => Math.min(1, Math.max(0, (4 - alt) / 10));
 const isNight = (view, site) => nightFactor(solar(view.time, view.date, site).alt) > 0.5;
 
@@ -660,7 +656,7 @@ const I18N = {
     meta: { title: 'Configurez votre pergola – CG Atelier' },
     brand: { name: 'CG Atelier', claim: 'Pergolas · Tarchamps' },
     ui: {
-      stepOf: 'Étape {n} sur {total}', next: 'Continuer', back: 'Retour', getQuote: 'Mon devis', unlock: 'Voir mon prix',
+      stepOf: 'Étape {n} sur {total}', next: 'Continuer', back: 'Retour', getQuote: 'Mon devis', unlock: 'Demander conseil',
       progress: 'Progression', lang: 'Langue', viewer: 'Aperçu 3D de votre pergola',
       loading: 'Chargement de l’aperçu 3D…',
       noWebgl: 'Votre navigateur ne peut pas afficher l’aperçu 3D. Le configurateur fonctionne quand même : vos choix et votre prix restent à jour.',
@@ -677,19 +673,18 @@ const I18N = {
       note: 'Prix indicatif TTC, pose comprise. Offre ferme après métré gratuit.',
       fromNote: 'La fourchette détaillée vous parvient avec votre devis par e-mail.',
       live: 'Prix indicatif mis à jour : {price}',
-      blurNote: 'Votre prix s’affiche dès l’envoi de votre demande. Gratuit et sans engagement.',
-      blurHint: 'Terminez votre configuration : votre prix s’affiche à la dernière étape, après votre demande.',
-      blurHint8: 'Envoyez votre demande ci-dessous pour voir votre prix immédiatement.',
-      hiddenSr: 'Prix visible après votre demande'
+      blurNote: 'Votre prix personnalisé vous est présenté lors de votre conseil gratuit et sans engagement.',
+      blurHint: 'CG Atelier vous présente votre prix personnellement. Demandez votre conseil à la dernière étape.',
+      blurHint8: 'Demandez votre conseil gratuit ci-dessous : vous y recevrez votre prix personnalisé.',
+      hiddenSr: 'Prix communiqué lors du conseil'
     },
     side: { front: 'Avant', back: 'Arrière', left: 'Gauche', right: 'Droite' },
     compass: { N: 'N', NE: 'NE', E: 'E', SE: 'SE', S: 'S', SW: 'SO', W: 'O', NW: 'NO' },
     compassLong: { N: 'Nord', NE: 'Nord-est', E: 'Est', SE: 'Sud-est', S: 'Sud', SW: 'Sud-ouest', W: 'Ouest', NW: 'Nord-ouest' },
     compass16: ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSO', 'SO', 'OSO', 'O', 'ONO', 'NO', 'NNO'],
     sun: {
-      open: 'Course du soleil', play: 'Lire la journée', pause: 'Pause', time: 'Heure', date: 'Date',
-      dates: { today: 'Auj.', jun: '21/6', mar: '20/3', dec: '21/12' },
-      riseSet: 'Lever {rise} · Coucher {set}', altitude: 'Soleil {alt}° · azimut {az}°', below: 'Soleil couché', hour: '{h} h',
+      open: 'Course du soleil', time: 'Heure (21 juin)',
+      riseSet: '21 juin · lever {rise} · coucher {set}', altitude: 'Soleil {alt}° · azimut {az}°', below: 'Soleil couché', hour: '{h} h',
       place: '{place} · terrasse {deg}° ({dir})', edit: 'Modifier'
     },
     geo: {
@@ -800,14 +795,14 @@ const I18N = {
       trustSub: 'Également distributeur TS Aluminium et Markilux. Interventions au Luxembourg et en Belgique (Bastogne, Arlon).',
       seal: 'Gibus', sealSub: 'Atelier',
       rating: 'Avis Google : {score} / 5 ({count} avis)',
-      ctaQuote: 'Recevoir mon devis indicatif par e-mail', ctaUnlock: 'Voir mon prix et recevoir mon devis', ctaShowroom: 'Rendez-vous au showroom de Tarchamps',
+      ctaQuote: 'Recevoir mon devis indicatif par e-mail', ctaUnlock: 'Demander mon conseil et mon devis', ctaShowroom: 'Rendez-vous au showroom de Tarchamps',
       ctaFine: 'Gratuit et sans engagement · Réponse sous 24 h'
     },
     form: {
       back: 'Retour au récapitulatif',
       titleQuote: 'Votre devis indicatif détaillé', titleShowroom: 'Votre visite au showroom',
-      introQuote: 'Nous vous envoyons le PDF avec tous les détails de votre pergola.',
-      introUnlock: 'Votre prix s’affiche dès l’envoi, puis nous vous appelons pour en parler.',
+      introQuote: 'Vous recevez votre configuration détaillée par e-mail.',
+      introUnlock: 'CG Atelier vous contacte sous 24 h et vous présente votre prix personnalisé.',
       introShowroom: 'Votre configuration vous attend à Tarchamps. Nous vous proposons un créneau.',
       firstName: 'Prénom', email: 'E-mail', phone: 'Téléphone (facultatif)', zipCity: 'Code postal et localité',
       zipPh: 'ex. 9573 Wiltz', country: 'Pays', LU: 'Luxembourg', BE: 'Belgique',
@@ -837,7 +832,7 @@ const I18N = {
     meta: { title: 'Pergola konfigurieren – CG Atelier' },
     brand: { name: 'CG Atelier', claim: 'Pergolen · Tarchamps' },
     ui: {
-      stepOf: 'Schritt {n} von {total}', next: 'Weiter', back: 'Zurück', getQuote: 'Angebot erhalten', unlock: 'Preis anzeigen',
+      stepOf: 'Schritt {n} von {total}', next: 'Weiter', back: 'Zurück', getQuote: 'Angebot erhalten', unlock: 'Beratung anfragen',
       progress: 'Fortschritt', lang: 'Sprache', viewer: '3D-Vorschau Ihrer Pergola',
       loading: '3D-Vorschau wird geladen…',
       noWebgl: 'Ihr Browser kann die 3D-Vorschau nicht anzeigen. Der Konfigurator funktioniert trotzdem: Auswahl und Preis bleiben aktuell.',
@@ -854,19 +849,18 @@ const I18N = {
       note: 'Richtpreis inkl. Montage und MwSt. Verbindliches Angebot nach kostenlosem Aufmaß.',
       fromNote: 'Die genaue Preisspanne erhalten Sie mit Ihrem Richtangebot per E-Mail.',
       live: 'Richtpreis aktualisiert: {price}',
-      blurNote: 'Ihren Preis sehen Sie sofort nach Ihrer Anfrage. Kostenlos und unverbindlich.',
-      blurHint: 'Konfigurieren Sie zu Ende: Ihr Preis erscheint im letzten Schritt nach Ihrer Anfrage.',
-      blurHint8: 'Senden Sie unten Ihre Anfrage, dann sehen Sie Ihren Preis sofort.',
-      hiddenSr: 'Preis sichtbar nach Ihrer Anfrage'
+      blurNote: 'Ihren persönlichen Preis erhalten Sie im kostenlosen, unverbindlichen Beratungsgespräch.',
+      blurHint: 'Ihren Preis bespricht CG Atelier persönlich mit Ihnen. Fordern Sie im letzten Schritt Ihre Beratung an.',
+      blurHint8: 'Fordern Sie unten Ihre kostenlose Beratung an. Dort erhalten Sie Ihren persönlichen Preis.',
+      hiddenSr: 'Preis im Beratungsgespräch'
     },
     side: { front: 'Vorne', back: 'Hinten', left: 'Links', right: 'Rechts' },
     compass: { N: 'N', NE: 'NO', E: 'O', SE: 'SO', S: 'S', SW: 'SW', W: 'W', NW: 'NW' },
     compassLong: { N: 'Nord', NE: 'Nordost', E: 'Ost', SE: 'Südost', S: 'Süd', SW: 'Südwest', W: 'West', NW: 'Nordwest' },
     compass16: ['N', 'NNO', 'NO', 'ONO', 'O', 'OSO', 'SO', 'SSO', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'],
     sun: {
-      open: 'Sonnenverlauf', play: 'Tagesverlauf abspielen', pause: 'Pause', time: 'Uhrzeit', date: 'Datum',
-      dates: { today: 'Heute', jun: '21.6.', mar: '20.3.', dec: '21.12.' },
-      riseSet: 'Aufgang {rise} · Untergang {set}', altitude: 'Sonne {alt}° · Azimut {az}°', below: 'Sonne untergegangen', hour: '{h} Uhr',
+      open: 'Sonnenverlauf', time: 'Uhrzeit (21. Juni)',
+      riseSet: '21. Juni · Aufgang {rise} · Untergang {set}', altitude: 'Sonne {alt}° · Azimut {az}°', below: 'Sonne untergegangen', hour: '{h} Uhr',
       place: '{place} · Terrasse {deg}° ({dir})', edit: 'Ändern'
     },
     geo: {
@@ -977,14 +971,14 @@ const I18N = {
       trustSub: 'Außerdem Händler von TS Aluminium und Markilux. Montage in Luxemburg und Belgien (Bastogne, Arlon).',
       seal: 'Gibus', sealSub: 'Atelier',
       rating: 'Google-Bewertung: {score} / 5 ({count} Bewertungen)',
-      ctaQuote: 'Richtangebot per E-Mail erhalten', ctaUnlock: 'Preis anzeigen & Richtangebot erhalten', ctaShowroom: 'Showroom-Termin in Tarchamps',
+      ctaQuote: 'Richtangebot per E-Mail erhalten', ctaUnlock: 'Beratung & Richtangebot anfragen', ctaShowroom: 'Showroom-Termin in Tarchamps',
       ctaFine: 'Kostenlos und unverbindlich · Antwort innerhalb von 24 h'
     },
     form: {
       back: 'Zurück zur Zusammenfassung',
       titleQuote: 'Ihr detailliertes Richtangebot', titleShowroom: 'Ihr Showroom-Termin',
-      introQuote: 'Wir senden Ihnen das PDF mit allen Details Ihrer Pergola.',
-      introUnlock: 'Nach dem Absenden sehen Sie sofort Ihren Preis, danach rufen wir Sie für das Beratungsgespräch an.',
+      introQuote: 'Sie erhalten Ihre Konfiguration mit allen Details per E-Mail.',
+      introUnlock: 'CG Atelier meldet sich innerhalb von 24 h und bespricht mit Ihnen Ihren persönlichen Preis.',
       introShowroom: 'Ihre Konfiguration wartet in Tarchamps auf Sie. Wir schlagen Ihnen einen Termin vor.',
       firstName: 'Vorname', email: 'E-Mail', phone: 'Telefon (optional)', zipCity: 'PLZ und Ort',
       zipPh: 'z. B. 9573 Wiltz', country: 'Land', LU: 'Luxemburg', BE: 'Belgien',
@@ -1128,7 +1122,7 @@ function defaultState() {
     site: { ...DEFAULT_SITE },
     geo: { status: 'idle', results: [], building: null },
     geoQuery: '',
-    view: { louver: 0, extend: 1, autoNight: false, prevTime: null, date: todayStr(DEFAULT_SITE), time: sunTimes(todayStr(DEFAULT_SITE), DEFAULT_SITE).day, sunOpen: false },
+    view: { louver: 0, extend: 1, autoNight: false, prevTime: null, date: summerDate(DEFAULT_SITE), time: 16, sunOpen: false },
     ui: { formMode: null, sending: false, formError: '', errors: {}, touched: {}, dimMsg: { width: '', depth: '' }, dimWanted: null },
     lead: { firstName: '', email: '', phone: '', zipCity: '', country: 'LU', timeframe: '', contactPref: 'email', slot: '', consent: false },
     leadType: null,
@@ -1237,7 +1231,7 @@ function fromPrice(model) {
 }
 function priceText(low, high) { return `${t('price.prefix')} ${fmtInt(low)} – ${fmtInt(high)} €`; }
 /* Blur-Modus: Preise erst nach der Anfrage sichtbar. Im DOM stehen nur Platzhalterziffern, nie der echte Wert. */
-const priceLocked = () => PRICE_MODE === 'blur' && !state.unlocked;
+const priceLocked = () => PRICE_MODE === 'blur' && !(PRICE_REVEAL_AFTER_LEAD && state.unlocked);
 const fakeDigits = (str) => str.replace(/\d/g, '8');
 function moneyHTML(n) {
   if (!priceLocked()) return esc(fmtEur(n));
@@ -2034,8 +2028,9 @@ const Scene3D = (() => {
     for (let h = Math.ceil(tt.rise); h <= Math.floor(tt.set); h++) {
       const sp = solar(h, anim.date, lastState.site);
       const pos = center.clone().addScaledVector(dirTo(sp.az, sp.alt), pathR);
-      const dot = new T.Mesh(new T.SphereGeometry(h % 3 === 0 ? 0.14 : 0.08, 12, 8), dotMat); dot.position.copy(pos); dot.renderOrder = 7; g.add(dot);
-      if (h % 3 === 0 && sceneTexts.hour) { const lb = label(sceneTexts.hour.replace('{h}', h), 1.15); lb.position.copy(pos).add(new T.Vector3(0, 0.55, 0)); g.add(lb); }
+      const key = SUN_TIMES.includes(h);
+      const dot = new T.Mesh(new T.SphereGeometry(key ? 0.15 : 0.07, 12, 8), dotMat); dot.position.copy(pos); dot.renderOrder = 7; g.add(dot);
+      if (key && sceneTexts.hour) { const lb = label(sceneTexts.hour.replace('{h}', h), 1.15); lb.position.copy(pos).add(new T.Vector3(0, 0.55, 0)); g.add(lb); }
     }
     const disc = new T.Mesh(new T.SphereGeometry(0.5, 24, 16), own(new T.MeshBasicMaterial({ color: 0xFFC447, fog: false, depthTest: false, transparent: true })));
     disc.visible = false; disc.renderOrder = 8; g.add(disc); refs.sunDisc = disc;
@@ -2276,17 +2271,6 @@ const Scene3D = (() => {
     if (!animate) { anim.time = h; applySun(); return; }
     tween('time', anim.time, h, ms, v => { anim.time = v; applySun(); callbacks.onTime && callbacks.onTime(v); }, onDone);
   }
-  /* Tagesverlauf vom Sonnenaufgang bis nach Sonnenuntergang abspielen */
-  function playDay() {
-    const tt = sunTimes(anim.date, lastState.site);
-    const from = anim.time >= tt.set + 0.4 ? tt.rise - 0.2 : anim.time;
-    anim.time = from;
-    const ms = reducedMotion.matches ? 0 : Math.max(2500, (tt.set + 0.6 - from) * 800);
-    setTime(tt.set + 0.6, true, ms, () => callbacks.onPlayEnd && callbacks.onPlayEnd());
-    if (reducedMotion.matches) { callbacks.onTime && callbacks.onTime(anim.time); callbacks.onPlayEnd && callbacks.onPlayEnd(); }
-  }
-  function stopPlay() { tweens.delete('time'); }
-  const isPlaying = () => tweens.has('time');
   function setDate(d) { anim.date = d; if (ready) buildSunPath(); }
   function setSunMode(on, fly = true) {
     sunMode = on;
@@ -2302,7 +2286,7 @@ const Scene3D = (() => {
   function setPanelSide(k) { panelSide = k; if (ready) applyHighlight(); }
   function isReady() { return ready; }
 
-  return { init, sync, setStep, setLouver, setExtend, setTime, playDay, stopPlay, isPlaying, setDate, setSunMode, setLabels, setPanelSide, isReady };
+  return { init, sync, setStep, setLouver, setExtend, setTime, setDate, setSunMode, setLabels, setPanelSide, isReady };
 })();
 
 /* =====================================================================
@@ -2368,7 +2352,7 @@ const Geo = (() => {
     const lead = { ...state.lead };
     if (!lead.zipCity && site.postcode) lead.zipCity = `${site.postcode} ${site.city}`.trim();
     if (['LU', 'BE'].includes(site.country)) lead.country = site.country;
-    const view = { ...state.view, date: state.view.date || todayStr(site) };
+    const view = { ...state.view, date: summerDate(site) };
     setState({ site: { lat: site.lat, lon: site.lon, country: site.country, label: site.label, source: site.source }, lead, view,
       geo: { status: 'building', results: [], building: null } }, { quiet: true });
     track('site_set', { site_source: site.source, country: site.country });
@@ -2512,18 +2496,9 @@ const UI = (() => {
           </div>
           <div class="sun-panel" id="sunPanel" hidden>
             <div class="sun-row">
-              <button type="button" class="icon-btn round" id="sunPlay"></button>
-              <input type="range" id="sunTime" step="0.05">
-              <output id="sunOut" for="sunTime"></output>
-            </div>
-            <div class="sun-row">
-              <div class="seg" role="group" id="sunDates">
-                <button type="button" data-date="today"></button>
-                <button type="button" data-date="jun"></button>
-                <button type="button" data-date="mar"></button>
-                <button type="button" data-date="dec"></button>
+              <div class="seg" role="group" id="sunTimes">
+                ${SUN_TIMES.map(h => `<button type="button" data-hour="${h}"></button>`).join('')}
               </div>
-              <input type="date" id="sunDate">
             </div>
             <div class="sun-meta"><span id="sunMeta"></span><span id="sunOrientNote"></span></div>
             <div class="sun-meta sun-place"><span id="sunPlace"></span><button type="button" class="linkbtn" id="sunEdit"></button></div>
@@ -2549,8 +2524,7 @@ const UI = (() => {
       viewer: $('#viewer'), canvasHost: $('#canvasHost'), viewerStatus: $('#viewerStatus'), viewerTop: $('#viewerTop'),
       dayNight: $('#dayNight'), dragHint: $('#dragHint'), louverCtl: $('#louverCtl'), louverRange: $('#louverRange'),
       louverLabel: $('#louverLabel'), louverOut: $('#louverOut'),
-      sunBtn: $('#sunBtn'), sunPanel: $('#sunPanel'), sunPlay: $('#sunPlay'), sunTime: $('#sunTime'), sunOut: $('#sunOut'),
-      sunDates: $('#sunDates'), sunDate: $('#sunDate'), sunMeta: $('#sunMeta'), sunOrientNote: $('#sunOrientNote'), sunPlace: $('#sunPlace'), sunEdit: $('#sunEdit'),
+      sunBtn: $('#sunBtn'), sunPanel: $('#sunPanel'), sunTimes: $('#sunTimes'), sunMeta: $('#sunMeta'), sunOrientNote: $('#sunOrientNote'), sunPlace: $('#sunPlace'), sunEdit: $('#sunEdit'),
       panelScroll: $('#panelScroll'), panelBody: $('#panelBody'), toast: $('#toast'),
       backBtn: $('#backBtn'), nextBtn: $('#nextBtn'), nextLbl: $('#nextLbl'),
       priceLabel: $('#priceLabel'), priceValue: $('#priceValue'), priceNote: $('#priceNote'), demoBadge: $('#demoBadge'), priceLive: $('#priceLive')
@@ -2859,7 +2833,7 @@ const UI = (() => {
       <h1 tabindex="-1" id="stepTitle">${esc(t('thanks.title', { name: state.lead.firstName }))}</h1>
       <p class="sub">${esc(showroom ? t('thanks.textShowroom') : t('thanks.textQuote'))}</p>
       ${summaryRows(false)}
-      ${PRICE_MODE !== 'from' ? `<div class="big-price">${esc(priceText(p.low, p.high))}</div><p class="note" style="margin-top:0">${esc(t('price.note'))}</p>` : ''}
+      ${PRICE_MODE !== 'from' && !priceLocked() ? `<div class="big-price">${esc(priceText(p.low, p.high))}</div><p class="note" style="margin-top:0">${esc(t('price.note'))}</p>` : ''}
       <p class="note">${esc(t('thanks.showroom'))}</p>
       <div class="ctas"><button type="button" class="btn btn-ghost btn-block" data-act="again" data-fk="again">${esc(t('thanks.again'))}</button>
       <button type="button" class="linkbtn" data-act="copy" data-fk="copy">${icon('link')}${esc(t('ui.copy'))}</button></div>
@@ -2974,21 +2948,8 @@ const UI = (() => {
     els.sunBtn.setAttribute('aria-label', t('sun.open'));
     els.sunPanel.hidden = !v.sunOpen || viewerState !== 'ready';
     if (els.sunPanel.hidden) return;
-    const min = Math.floor((tt.rise - 0.5) * 4) / 4, max = Math.ceil((tt.set + 1.25) * 4) / 4;
-    els.sunTime.min = min; els.sunTime.max = max;
-    els.sunTime.value = clamp(v.time, min, max);
-    els.sunTime.setAttribute('aria-label', t('sun.time'));
-    els.sunTime.setAttribute('aria-valuetext', fmtTime(v.time));
-    setRangeFill(els.sunTime);
-    els.sunOut.textContent = fmtTime(v.time);
-    const playing = Scene3D.isPlaying && Scene3D.isPlaying();
-    els.sunPlay.innerHTML = icon(playing ? 'pause' : 'play');
-    els.sunPlay.setAttribute('aria-label', t(playing ? 'sun.pause' : 'sun.play'));
-    const qd = quickDates(state.site);
-    els.sunDates.setAttribute('aria-label', t('sun.date'));
-    els.sunDates.querySelectorAll('button').forEach(b => { b.textContent = t('sun.dates.' + b.dataset.date); b.setAttribute('aria-pressed', String(qd[b.dataset.date] === v.date)); });
-    if (els.sunDate.value !== v.date) els.sunDate.value = v.date;
-    els.sunDate.setAttribute('aria-label', t('sun.date'));
+    els.sunTimes.setAttribute('aria-label', t('sun.time'));
+    els.sunTimes.querySelectorAll('button').forEach(b => { b.textContent = fmtTime(+b.dataset.hour); b.setAttribute('aria-pressed', String(Math.abs(v.time - b.dataset.hour) < 0.01)); });
     els.sunMeta.textContent = t('sun.riseSet', { rise: fmtTime(tt.rise), set: fmtTime(tt.set) });
     const sp = solar(v.time, v.date, state.site);
     els.sunOrientNote.textContent = sp.alt > 0 ? t('sun.altitude', { alt: sp.alt.toFixed(1).replace('.', ','), az: Math.round(sp.az) }) : t('sun.below');
@@ -3048,22 +3009,7 @@ const UI = (() => {
       setSunTime(b.dataset.night === '1' ? tt.evening : tt.day, true);
     });
     els.sunBtn.addEventListener('click', () => openSun(!state.view.sunOpen));
-    els.sunPlay.addEventListener('click', () => {
-      if (Scene3D.isPlaying()) Scene3D.stopPlay(); else { state.view.autoNight = false; Scene3D.playDay(); }
-      syncSun();
-    });
-    els.sunTime.addEventListener('input', () => setSunTime(+els.sunTime.value, false));
-    const changeDate = (d) => {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
-      const old = sunTimes(state.view.date, state.site), nw = sunTimes(d, state.site);
-      // gleiche Tagesphase beibehalten (z. B. 2 h nach Sonnenaufgang)
-      const k = (state.view.time - old.rise) / (old.set - old.rise);
-      state.view.date = d;
-      Scene3D.setDate(d);
-      setSunTime(nw.rise + k * (nw.set - nw.rise), false);
-    };
-    els.sunDates.addEventListener('click', e => { const b = e.target.closest('[data-date]'); if (b) changeDate(quickDates(state.site)[b.dataset.date]); });
-    els.sunDate.addEventListener('change', () => changeDate(els.sunDate.value));
+    els.sunTimes.addEventListener('click', e => { const b = e.target.closest('[data-hour]'); if (b) { setSunTime(+b.dataset.hour, true); syncSun(); } });
     els.sunEdit.addEventListener('click', () => { goStep(2); setTimeout(() => { const h = document.getElementById('siteTitle'); h && h.scrollIntoView({ block: 'start', behavior: reducedMotion.matches ? 'auto' : 'smooth' }); }, 60); });
     els.louverRange.addEventListener('input', () => {
       const M = MODELS[state.model];
@@ -3418,8 +3364,8 @@ const Lead = (() => {
         track(evt, { ...trackParams(), country: lead.contact.country, timeframe: lead.contact.timeframe });
         if (typeof window.fbq === 'function') window.fbq('track', 'Lead', { value: lead.price.total, currency: 'EUR', content_name: lead.configuration.model.key });
       }
-      try { localStorage.setItem('cg_price_unlocked', '1'); } catch (e) { /* privater Modus */ }
-      setState({ step: 9, unlocked: true, ui: { sending: false, formMode: null } }, { quiet: true });
+      if (PRICE_REVEAL_AFTER_LEAD) { try { localStorage.setItem('cg_price_unlocked', '1'); } catch (e) { /* privater Modus */ } }
+      setState({ step: 9, unlocked: PRICE_REVEAL_AFTER_LEAD, ui: { sending: false, formMode: null } }, { quiet: true });
       Scene3D.setStep(9);
     } catch (err) {
       console.error('[lead] Fehler', err);
@@ -3439,7 +3385,7 @@ const Lead = (() => {
   const qLang = (QS.get('lang') || '').toLowerCase();
   state.lang = I18N[qLang] ? qLang : 'fr';
   state.utm = readUtm();
-  try { state.unlocked = localStorage.getItem('cg_price_unlocked') === '1'; } catch (e) { /* ignore */ }
+  try { state.unlocked = PRICE_REVEAL_AFTER_LEAD && localStorage.getItem('cg_price_unlocked') === '1'; } catch (e) { /* ignore */ }
   const restored = decodeHash(location.hash);
   if (restored) Object.assign(state, restored);
   normalize(state);
@@ -3466,7 +3412,6 @@ const Lead = (() => {
       },
       onLouver: UI.onLouverAnim,
       onTime: (h) => { state.view.time = h; UI.syncSun(); },
-      onPlayEnd: () => UI.syncSun(),
       onInteract: UI.hideDragHint,
       onContextLost: () => UI.setViewer('failed')
     });
