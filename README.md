@@ -62,6 +62,10 @@ Alle Einstellungen stehen oben im `<script>`-Block unter **1. CONFIG**.
 - **Nacht:** Lichtteppich der LED und Glühen der Heizstrahler am Boden. Ein direkt auf Schritt 7 geöffneter Link startet ebenfalls im Abend.
 - **Umgebung:** Hauswand mit Faschen und Fensterbänken, Terrasse mit Randsteinen, Lounge mit Polstern und Zierkissen, Pflanzkübel mit Bäumchen, Hecke, Wolken.
 - **Profil-Details:** umlaufende Regenrinne mit Profillippen im Träger, Endkappen an jeder Lamelle, Motorgehäuse unter dem Seitenträger, Pfostenkappen, Sockelblende und Edelstahl-Sechskantschrauben mit Unterlegscheiben auf der Fußplatte. Geschlossene Lamellen überlappen, ohne Lichtspalt.
+- **Optionen in 3D:**
+  - **LED:** umlaufendes, in den Träger eingelassenes Alu-Profil mit Opal-Abdeckung; bei Lamellendächern zusätzlich LED-Linien in jeder dritten Lamelle (drehen mit). Auf dem Desktop leuchtet das Licht als Flächenlicht in Leistenform (linienförmige Reflexe).
+  - **Heizstrahler:** Infrarot-Strahler (ca. 90 cm) mit Gehäuse, poliertem Reflektor, Heizstab und Schutzgitter, an zwei Haltern unter dem Träger, zum Sitzbereich geneigt; glüht abends.
+  - **Wind-/Regensensor:** so montiert, wie es bei Lamellendächern üblich ist: flacher Regensensor oben auf dem vorderen Träger nahe der Ecke (Sensorfläche frei zum Himmel), kleines Schalenkreuz-Anemometer auf einem Winkelhalter außen am Seitenträger. Die genaue Position beim jeweiligen Hersteller bitte beim Kunden bestätigen lassen; Gibus verbaut je nach Modell auch integrierte Sensoren.
 - **Oberflächen:** Holzdielen mit Maserung, Ästen, Fugen und Relief, Scheibenputz an der Fassade, Leinwandgewebe beim Tuch-/PVC-Dach, feine Pulverstruktur auf dem Aluminium (Desktop), Rasen mit Grasbüscheln rund um die Terrasse, buschige Hecke, Bäumchen mit unregelmäßiger Krone.
 - **Glas:** klare Scheibe plus Spiegelschicht (Fresnel: frontal durchsichtig, im flachen Winkel spiegelnd). Auf dem Desktop spiegeln Glas und Fenster die tatsächliche Szene samt Tageszeit (Würfelkamera, wird nur bei Änderungen neu aufgenommen).
 - **Qualitätsstufen:**

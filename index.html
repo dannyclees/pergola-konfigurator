@@ -1452,7 +1452,7 @@ function trackStep(n) {
    Hauswand bei z = 0, Pergola wächst nach +z, Breite entlang x
    ===================================================================== */
 const Scene3D = (() => {
-  let T, OrbitControls, RoomEnvironment, RoundedBox;
+  let T, OrbitControls, RoomEnvironment, RoundedBox, RectAreaLib = null;
   let renderer, scene, camera, controls, host;
   let ready = false, rafId = 0, dirty = true, lastT = 0, running = false, pageVisible = true, inView = true;
   let structSig = '', lastState = null, step = 1;
@@ -1678,13 +1678,16 @@ const Scene3D = (() => {
     // Spiegelschicht für Glas: nur die Reflexion (Fresnel – frontal schwach, im flachen Winkel stark), additiv über der klaren Scheibe.
     // Im HQ-Modus spiegelt sie die tatsächliche Szene (Himmel, Haus, Garten, Tageszeit), siehe updateEnvProbe().
     mats.glassRefl = new T.MeshPhysicalMaterial({ color: '#000000', roughness: 0.02, metalness: 0, transparent: true, depthWrite: false,
-      blending: T.AdditiveBlending, side: T.DoubleSide, envMapIntensity: 1.5, specularIntensity: 1, ior: 1.52 });
-    mats.glassRefl.userData.envBase = 1.5; envMats.push(mats.glassRefl);
+      blending: T.AdditiveBlending, side: T.DoubleSide, envMapIntensity: HQ ? 1.5 : 0.45, specularIntensity: 1, ior: 1.52 });
+    // Ohne HQ spiegelt die helle Studio-Umgebung – daher schwächer, sonst wirkt das Glasdach milchig
+    mats.glassRefl.userData.envBase = mats.glassRefl.envMapIntensity; envMats.push(mats.glassRefl);
     if (HQ) { mats.glass.opacity = 0.12; mats.glass.color.set('#E4F0EC'); }
     mats.zip = std({ color: '#47494C', roughness: 0.95, transparent: true, opacity: 0.86, side: T.DoubleSide, alphaMap: tex.zip });
-    mats.led = std({ color: '#FFF4E0', emissive: '#FFC27A', emissiveIntensity: 0.3, roughness: 0.4 });
+    mats.led = std({ color: '#F4F1EA', emissive: '#FFC27A', emissiveIntensity: 0.3, roughness: 0.35 });     // Opal-Abdeckung der LED
     mats.heaterBody = std({ color: '#2A2C2F', roughness: 0.4, metalness: 0.6 });
     mats.heaterGlow = std({ color: '#5A2A10', emissive: '#FF6A1A', emissiveIntensity: 0.25, roughness: 0.5 });
+    mats.heaterRefl = std({ color: '#C9CCD0', roughness: 0.18, metalness: 1 });              // polierter Reflektor im Strahler
+    mats.heaterGrille = std({ color: '#1C1D1F', roughness: 0.5, metalness: 0.5 });
     mats.terrace = std({ map: tex.planks, bumpMap: tex.planksBump, bumpScale: HQ ? 1.6 : 1.1, roughness: 0.82, metalness: 0 });
     mats.lawn = std({ map: tex.grass, bumpMap: tex.grassBump, bumpScale: 0.35, roughness: 1, metalness: 0 });
     mats.plaster = std({ map: tex.plaster, bumpMap: tex.plasterBump, bumpScale: HQ ? 0.4 : 0.3, roughness: 0.95, metalness: 0 });
@@ -1695,6 +1698,7 @@ const Scene3D = (() => {
     mats.doorFrame = std({ color: '#2F3236', roughness: 0.45, metalness: 0.5 });
     mats.groove = std({ color: '#121315', roughness: 0.8, metalness: 0.2 });
     mats.sensor = std({ color: '#ECEBE7', roughness: 0.5, metalness: 0.1 });
+    mats.sensorPad = std({ color: '#2B3036', roughness: 0.15, metalness: 0.2 });           // Sensorfläche des Regensensors
     mats.doorGlass = std({ color: HQ ? '#44515D' : '#2B3640', roughness: 0.05, metalness: 0.2, emissive: '#E89A55', emissiveIntensity: 0, envMapIntensity: 1.4 });
     mats.doorGlass.userData.envBase = 1.4;
     mats.sofa = std({ color: '#D9D2C7', roughness: 0.95 });
@@ -1722,7 +1726,7 @@ const Scene3D = (() => {
     mats.spa = std({ color: '#E8E4DE', roughness: 0.6 });
     mats.water = std({ color: '#3FA6B8', roughness: 0.08, metalness: 0.1, emissive: '#2BB3D6', emissiveIntensity: 0 });
     [[mats.frame, 0.014], [mats.roof, 0.01], [mats.sofa, 0.07], [mats.cushion, 0.06], [mats.pillow, 0.05], [mats.wood, 0.02], [mats.spa, 0.08],
-     [mats.potMat, 0.04], [mats.heaterBody, 0.012], [mats.hedge, 0.25], [mats.curb, 0.012], [mats.facade, 0.01], [mats.sill, 0.008]].forEach(([m, r]) => ROUND.set(m, r));
+     [mats.potMat, 0.04], [mats.heaterBody, 0.014], [mats.sensor, 0.008], [mats.hedge, 0.25], [mats.curb, 0.012], [mats.facade, 0.01], [mats.sill, 0.008]].forEach(([m, r]) => ROUND.set(m, r));
     mats.dim = new T.MeshBasicMaterial({ color: '#2B2D30', depthTest: false, transparent: true, opacity: 0.85 });
     mats.hit = new T.MeshBasicMaterial({ colorWrite: false, depthWrite: false, side: T.DoubleSide });
     mats.highlight = new T.MeshBasicMaterial({ color: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#7B5B3A',
@@ -1767,9 +1771,20 @@ const Scene3D = (() => {
     lights.sun.shadow.normalBias = 0.03;
     scene.add(lights.sun, lights.sun.target);
     // Konstante Lichteranzahl (keine Shader-Neukompilierung beim Umschalten)
-    lights.led1 = new T.PointLight(0xFFC98A, 0, 7, 2);
-    lights.led2 = new T.PointLight(0xFFC98A, 0, 7, 2);
-    lights.heat = new T.PointLight(0xFF7A2A, 0, 6, 2);
+    // LED-Licht: im HQ-Modus Flächenlichter in Form der Leisten (linienförmige Reflexe statt runder Lampenflecken)
+    if (RectAreaLib) {
+      RectAreaLib.init();
+      lights.led1 = new T.RectAreaLight(0xFFC98A, 0, 1, 0.03); lights.led1.rotation.x = -Math.PI / 2;
+      lights.led2 = new T.RectAreaLight(0xFFC98A, 0, 1, 0.03); lights.led2.rotation.x = -Math.PI / 2;
+      lights.ledMax = 22;
+    } else {
+      lights.led1 = new T.PointLight(0xFFC98A, 0, 7, 2);
+      lights.led2 = new T.PointLight(0xFFC98A, 0, 7, 2);
+      lights.ledMax = 1.3;
+    }
+    // Heizstrahler-Schein: im HQ-Modus ebenfalls als Flächenlicht in Strahlerform (geneigt zum Sitzbereich)
+    lights.heat = RectAreaLib ? new T.RectAreaLight(0xFF7A2A, 0, 0.8, 0.1) : new T.PointLight(0xFF7A2A, 0, 6, 2);
+    lights.heatK = RectAreaLib ? 9 : 1;
     scene.add(lights.led1, lights.led2, lights.heat);
 
     const lawn = new T.Mesh(new T.CircleGeometry(70, 48), mats.lawn);
@@ -1972,50 +1987,90 @@ const Scene3D = (() => {
     if (M.type === 'glass') buildGlassRoof(s, M, pg, W, D, pw, fh, rise);
     if (M.type === 'retract') buildFabricRoof(s, M, pg, W, D, zIn, pw, fh);
 
-    /* LED-Leisten (unter den Innenkanten) */
+    /* LED: umlaufendes, in den Träger eingelassenes Alu-Profil mit Opal-Abdeckung (Unterseite der Innenkanten).
+       Bei Lamellendächern zusätzlich LED-Linien in den Lamellen, siehe buildLouvers(). */
     const led = new T.Group(); refs.ledStrips = led; pg.add(led);
-    led.add(box(W - 2 * pw, 0.016, 0.03, mats.led, 0, H - 0.01, D - pw - 0.03, false));
-    led.add(box(W - 2 * pw, 0.016, 0.03, mats.led, 0, H + rise - 0.01, zIn + 0.03, false));
+    const ledProfile = (len, x, y, z, alongZ, tilt = 0) => {
+      const g = new T.Group(); g.position.set(x, y, z); g.rotation.x = tilt; led.add(g);
+      const d3 = (a, b, c) => (alongZ ? [c, b, a] : [a, b, c]);
+      g.add(box(...d3(len, 0.012, 0.05), mats.frame, 0, 0.006, 0, false));            // Profil
+      g.add(box(...d3(len - 0.01, 0.008, 0.026), mats.led, 0, -0.002, 0, false));       // Opal-Abdeckung (leuchtet)
+      [-1, 1].forEach(e => g.add(box(...d3(len, 0.01, 0.006), mats.groove, ...(alongZ ? [e * 0.016, 0, 0] : [0, 0, e * 0.016]), false)));
+      [-1, 1].forEach(e => g.add(box(...d3(0.006, 0.012, 0.05), mats.groove, ...(alongZ ? [0, 0.004, e * (len / 2 - 0.003)] : [e * (len / 2 - 0.003), 0.004, 0]), false)));  // Endkappen
+    };
+    ledProfile(W - 2 * pw - 0.04, 0, H - 0.012, D - pw - 0.045, false);
+    ledProfile(W - 2 * pw - 0.04, 0, H + rise - 0.012, zIn + 0.045, false);
     [-1, 1].forEach(sx => {
-      const len = Math.hypot(D - zIn - pw, rise);
-      const strip = box(0.03, 0.016, len, mats.led, sx * (W / 2 - pw - 0.03), H + rise / 2 - 0.01, (zIn + D - pw) / 2, false);
-      strip.rotation.x = Math.atan2(rise, D - zIn - pw);
-      led.add(strip);
+      const run = D - zIn - pw, len = Math.hypot(run, rise) - 0.14;
+      ledProfile(len, sx * (W / 2 - pw - 0.045), H + rise / 2 - 0.012, (zIn + D - pw) / 2, true, Math.atan2(rise, run));
     });
-    lights.led1.position.set(-W / 4, H - 0.25, D * 0.55);
-    lights.led2.position.set(W / 4, H - 0.25, D * 0.55);
+    if (lights.led1.isRectAreaLight) {
+      lights.led1.width = lights.led2.width = W - 2 * pw - 0.1;
+      lights.led1.position.set(0, H - 0.03, D - pw - 0.045);
+      lights.led2.position.set(0, H + rise - 0.03, zIn + 0.045);
+    } else {
+      lights.led1.position.set(-W / 4, H - 0.6, D * 0.55);
+      lights.led2.position.set(W / 4, H - 0.6, D * 0.55);
+    }
 
     /* Heizstrahler */
     const hp = [
-      { x: -W / 4, z: D - pw - 0.14, r: 0.55, y: H - 0.06 }, { x: W / 4, z: D - pw - 0.14, r: 0.55, y: H - 0.06 },
-      { x: -W / 4, z: zIn + 0.14, r: -0.55, y: H + rise - 0.06 }, { x: W / 4, z: zIn + 0.14, r: -0.55, y: H + rise - 0.06 }
+      { x: -W / 4, z: D - pw - 0.16, r: 0.6, y: H - 0.06 }, { x: W / 4, z: D - pw - 0.16, r: 0.6, y: H - 0.06 },
+      { x: -W / 4, z: zIn + 0.16, r: -0.6, y: H + rise - 0.06 }, { x: W / 4, z: zIn + 0.16, r: -0.6, y: H + rise - 0.06 }
     ];
     const order = [[], [{ ...hp[0], x: 0 }], [hp[0], hp[1]], [hp[0], hp[1], { ...hp[2], x: 0 }], hp];
     for (let n = 1; n <= 4; n++) {
       const set = new T.Group(); set.visible = false;
       order[n].forEach(p => {
-        const g = new T.Group(); g.position.set(p.x, p.y, p.z); g.rotation.x = p.r;
-        g.add(box(0.62, 0.07, 0.12, mats.heaterBody, 0, 0, 0, false));
-        g.add(box(0.52, 0.018, 0.05, mats.heaterGlow, 0, -0.04, 0, false));
-        set.add(g);
+        // Infrarot-Heizstrahler (ca. 90 cm, 2 kW): schlankes Gehäuse, polierter Reflektor, Heizstab, Schutzgitter,
+        // an zwei Haltern unter dem Träger, zum Sitzbereich geneigt
+        const mount = new T.Group(); mount.position.set(p.x, p.y + 0.06, p.z); set.add(mount);
+        [-0.3, 0.3].forEach(bx => {
+          mount.add(box(0.04, 0.008, 0.06, mats.heaterBody, bx, -0.004, 0, false));                 // Montageplatte am Träger
+          mount.add(box(0.012, 0.07, 0.03, mats.heaterBody, bx, -0.04, 0, false));                  // Halter
+        });
+        const g = new T.Group(); g.position.set(0, -0.085, 0); g.rotation.x = p.r; mount.add(g);
+        g.add(box(0.9, 0.055, 0.15, mats.heaterBody, 0, 0, 0, false));                               // Gehäuse
+        g.add(box(0.84, 0.006, 0.11, mats.heaterRefl, 0, -0.024, 0, false));                         // Reflektor
+        const rod = new T.Mesh(new T.CylinderGeometry(0.0085, 0.0085, 0.8, 10), mats.heaterGlow);  // Heizstab
+        rod.rotation.z = Math.PI / 2; rod.position.set(0, -0.034, 0); g.add(rod);
+        for (let k = 0; k < 7; k++) g.add(box(0.84, 0.004, 0.004, mats.heaterGrille, 0, -0.042, -0.054 + k * 0.018, false)); // Schutzgitter
+        [-1, 1].forEach(e => g.add(box(0.03, 0.06, 0.155, mats.heaterGrille, e * 0.45, 0, 0, false))); // Endkappen
         const pool = new T.Mesh(new T.PlaneGeometry(1.6, 1.6), mats.heatPool);       // warmes Glühen am Boden
         pool.rotation.x = -Math.PI / 2; pool.position.set(p.x, 0.007, p.z + (p.r > 0 ? -0.55 : 0.55)); pool.renderOrder = 2;
         set.add(pool);
       });
       refs.heaters[n] = set; pg.add(set);
     }
-    lights.heat.position.set(0, H - 0.5, D / 2);
+    if (lights.heat.isRectAreaLight) {
+      lights.heat.position.set(0, H - 0.13, D - pw - 0.16);
+      lights.heat.rotation.set(-Math.PI / 2 + 0.6, 0, 0);
+    } else lights.heat.position.set(0, H - 0.5, D / 2);
     const ledPool = new T.Mesh(new T.PlaneGeometry(W * 0.95, D * 0.95), mats.ledPool);   // Lichtkegel der LED auf dem Boden
     ledPool.rotation.x = -Math.PI / 2; ledPool.position.set(0, 0.006, D / 2); ledPool.renderOrder = 2;
     refs.ledPool = ledPool; ledPool.visible = !!s.options.led; pg.add(ledPool);
 
-    /* Wind-/Regensensor: kleiner Mast mit Sensorkopf auf dem vorderen Eckpfosten */
-    const sensor = new T.Group(); sensor.visible = !!s.options.sensor; refs.sensor = sensor;
-    sensor.position.set(W / 2 - pw / 2, H + fh + (isGlass ? rise * (pw / 2 / D) : 0), D - pw / 2);
-    sensor.add(box(0.025, 0.22, 0.025, mats.heaterBody, 0, 0.11, 0, false));
-    sensor.add(box(0.12, 0.05, 0.08, mats.sensor, 0, 0.245, 0, false));
-    const cup = new T.Mesh(new T.SphereGeometry(0.035, 12, 8), mats.sensor); cup.position.set(0, 0.29, 0); sensor.add(cup);
-    pg.add(sensor);
+    /* Wind-/Regensensor, so wie er üblicherweise montiert wird:
+       – Regensensor: flaches Modul (ca. 10 × 6 cm) oben auf dem vorderen Träger nahe der Ecke, Sensorfläche frei zum Himmel
+       – Windsensor (Anemometer): kleines Schalenkreuz auf einem Winkelhalter außen am Seitenträger, knapp über der Oberkante */
+    const sensor = new T.Group(); sensor.visible = !!s.options.sensor; refs.sensor = sensor; pg.add(sensor);
+    const topY = H + fh;
+    const rain = new T.Group(); rain.position.set(W / 2 - pw * 2.2, topY, D - pw / 2 + pw * 0.18); sensor.add(rain);
+    rain.add(box(0.1, 0.022, 0.06, mats.sensor, 0, 0.011, 0, false));
+    const pad = box(0.07, 0.004, 0.04, mats.sensorPad, 0, 0.024, 0, false); pad.rotation.x = -0.12; rain.add(pad);
+    rain.add(box(0.01, 0.01, 0.03, mats.groove, -0.055, 0.006, 0, false));                          // Kabelauslass
+    const wind = new T.Group(); wind.position.set(W / 2 + 0.005, topY - fh * 0.5, D - pw * 2.2); sensor.add(wind);
+    wind.add(box(0.006, 0.08, 0.05, mats.heaterBody, 0.003, 0, 0, false));                          // Winkel am Träger
+    wind.add(box(0.06, 0.006, 0.05, mats.heaterBody, 0.03, 0.037, 0, false));
+    wind.add(box(0.014, 0.12, 0.014, mats.sensor, 0.055, 0.1, 0, false));                           // Mast
+    wind.add(box(0.04, 0.03, 0.04, mats.sensor, 0.055, 0.175, 0, false));                           // Gehäuse
+    const rotor = new T.Group(); rotor.position.set(0.055, 0.2, 0); wind.add(rotor); refs.anemo = rotor;
+    for (let k = 0; k < 3; k++) {
+      const a = k * Math.PI * 2 / 3, arm = new T.Group(); arm.rotation.y = a; rotor.add(arm);
+      arm.add(box(0.07, 0.004, 0.004, mats.sensor, 0.035, 0, 0, false));
+      const cup = new T.Mesh(new T.SphereGeometry(0.016, 12, 8, 0, Math.PI), mats.sensor); cup.position.set(0.07, 0, 0); cup.rotation.y = Math.PI / 2; arm.add(cup);
+    }
+    refs.sensorPos = [W / 2 - pw, topY + 0.05, D - pw];
 
     /* Seiten */
     activeSides(s).forEach(k => buildSide(s, M, pg, k, W, D, zIn, pw));
@@ -2233,9 +2288,15 @@ const Scene3D = (() => {
       solar.frustumCulled = false; solar.visible = !!s.options.solar;
       pg.add(solar);
     }
-    refs.louvers = { mesh, solar, caps, capOff: len / 2 + 0.004, items, alongZ };
+    // LED-Linie in jeder dritten Lamelle (Unterseite, dreht mit) – Option „LED-Beleuchtung“
+    const ledIdx = items.map((_, i) => i).filter(i => i % 3 === 1);
+    const ledGeo = alongZ ? new T.BoxGeometry(0.016, 0.004, len - 0.12) : new T.BoxGeometry(len - 0.12, 0.004, 0.016);
+    const lledMesh = new T.InstancedMesh(ledGeo, mats.led, Math.max(1, ledIdx.length));
+    lledMesh.count = ledIdx.length; lledMesh.frustumCulled = false; lledMesh.castShadow = false;
+    lledMesh.visible = !!s.options.led; pg.add(lledMesh);
+    refs.louvers = { mesh, solar, caps, capOff: len / 2 + 0.004, items, alongZ, led: lledMesh, ledIdx };
   }
-  let _mat, _mat2, _off, _q, _p, _sc, _e, _capM;
+  let _mat, _mat2, _off, _q, _p, _sc, _e, _capM, _ledOff;
   function setLouverMatrices(deg) {
     const L = refs.louvers; if (!L) return;
     if (!_mat) { _mat = new T.Matrix4(); _mat2 = new T.Matrix4(); _off = new T.Matrix4().makeTranslation(0, 0.018, 0); _q = new T.Quaternion(); _p = new T.Vector3(); _sc = new T.Vector3(1, 1, 1); _e = new T.Euler(); }
@@ -2252,6 +2313,11 @@ const Scene3D = (() => {
         _mat2.copy(_mat).multiply(_capM); L.caps.setMatrixAt(i * 2 + j, _mat2);
       });
     });
+    if (L.led) {
+      _ledOff = _ledOff || new T.Matrix4().makeTranslation(0, -0.0135, 0);
+      L.ledIdx.forEach((i, j) => { const it = L.items[i]; _p.set(it.x, it.y, it.z); _mat.compose(_p, _q, _sc).multiply(_ledOff); L.led.setMatrixAt(j, _mat); });
+      L.led.instanceMatrix.needsUpdate = true;
+    }
     L.mesh.instanceMatrix.needsUpdate = true;
     if (L.caps) L.caps.instanceMatrix.needsUpdate = true;
     if (L.solar) L.solar.instanceMatrix.needsUpdate = true;
@@ -2404,6 +2470,7 @@ const Scene3D = (() => {
   }
   function applyOptions(s) {
     if (refs.ledStrips) refs.ledStrips.visible = !!s.options.led;
+    if (refs.louvers && refs.louvers.led) refs.louvers.led.visible = !!s.options.led;
     for (let n = 1; n <= 4; n++) if (refs.heaters[n]) refs.heaters[n].visible = s.options.heaters === n;
     if (refs.louvers && refs.louvers.solar) refs.louvers.solar.visible = !!s.options.solar;
     if (refs.sensor) refs.sensor.visible = !!s.options.sensor;
@@ -2475,11 +2542,11 @@ const Scene3D = (() => {
     envMats.forEach(m => { m.envMapIntensity = (m.userData.envBase ?? 1) * lerp(1, 0.12, n); });
     const led = s && s.options.led, heaters = s ? s.options.heaters : 0;
     mats.led.emissiveIntensity = lerp(0.35, 2.6, n);
-    lights.led1.intensity = lights.led2.intensity = led ? lerp(0, 1.6, n) : 0;
+    lights.led1.intensity = lights.led2.intensity = led ? lerp(0, lights.ledMax, n) : 0;
     mats.ledPool.opacity = 0.42 * n;
     mats.heatPool.opacity = 0.5 * n;
     mats.heaterGlow.emissiveIntensity = lerp(0.35, 3.5, n);
-    lights.heat.intensity = heaters ? lerp(0, 0.8 + heaters * 0.5, n) : 0;
+    lights.heat.intensity = heaters ? lerp(0, (0.8 + heaters * 0.5) * lights.heatK, n) : 0;
     mats.doorGlass.emissiveIntensity = lerp(0, 0.09, n);
     mats.water.emissiveIntensity = lerp(0, 0.5, n);
     renderer.toneMappingExposure = lerp(1.0, 1.05, n);
@@ -2597,7 +2664,7 @@ const Scene3D = (() => {
       heaters:  { pos: V(W * 0.18, 1.45, D * 0.3), target: V(0, H - 0.12, D - pw - 0.2) },
       solar:    { pos: V(W * 0.35, H + 4.8, D / 2 + 3.6), target: V(0, H + 0.1, D / 2) },
       lightband:{ pos: V(W * 0.35, H + 4.2, 3.2), target: V(0, H + 0.1, 0.4) },
-      sensor:   { pos: V(W / 2 + 1.5, H + 1.2, D + 2.0), target: V(W / 2 - pw / 2, H + fh + 0.2, D - pw / 2) }
+      sensor:   { pos: V(W / 2 + 1.1, H + fh + 0.75, D + 0.9), target: V(W / 2 - pw, H + fh + 0.06, D - pw * 1.5) }
     };
     const p = poses[kind]; if (!p) return;
     endFocus();
@@ -2934,13 +3001,15 @@ const Scene3D = (() => {
     camera = new T.PerspectiveCamera(40, 1, 0.1, 200);
     if (HQ) {
       try {
-        const [ec, rp, gt, ub, op] = await Promise.all([
+        const [ec, rp, gt, ub, op, ra] = await Promise.all([
           import('three/addons/postprocessing/EffectComposer.js'),
           import('three/addons/postprocessing/RenderPass.js'),
           import('three/addons/postprocessing/GTAOPass.js'),
           import('three/addons/postprocessing/UnrealBloomPass.js'),
-          import('three/addons/postprocessing/OutputPass.js')
+          import('three/addons/postprocessing/OutputPass.js'),
+          import('three/addons/lights/RectAreaLightUniformsLib.js')
         ]);
+        RectAreaLib = ra.RectAreaLightUniformsLib;
         softShadows = patchSoftShadows();
         setupPost({ EffectComposer: ec.EffectComposer, RenderPass: rp.RenderPass, GTAOPass: gt.GTAOPass, UnrealBloomPass: ub.UnrealBloomPass, OutputPass: op.OutputPass });
       } catch (e) {
