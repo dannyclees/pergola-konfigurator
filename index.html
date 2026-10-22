@@ -18,6 +18,10 @@
 <!-- DSGVO-Hinweis: Für den Livegang Inter selbst hosten (woff2) statt Google Fonts zu laden. -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<script>
+  // Direkt aufgerufen (nicht im iframe/Popup): auf dem Desktop als zentrierte Box darstellen, siehe html.standalone
+  if (window.parent === window && new URLSearchParams(location.search).get('embed') !== '1') document.documentElement.classList.add('standalone');
+</script>
 <script type="importmap">
 {
   "imports": {
@@ -459,6 +463,22 @@ input[type="range"]:focus-visible { outline-offset: 0; }
   .sun-btn { width: 44px; padding: 0; justify-content: center; }
   .daynight button { width: 44px; padding: 0; justify-content: center; }
 }
+
+/* Desktop, direkt aufgerufen: Konfigurator als ruhige, große Box auf weichem Hintergrund statt randlos über den ganzen Bildschirm.
+   Handy/Tablet hoch bleibt randlos. Im Popup der Website (embed.js) füllt der Konfigurator die Box des Popups. */
+@media (min-width: 1100px) and (min-height: 700px) {
+  html.standalone body {
+    display: grid; place-items: center;
+    background: radial-gradient(120% 90% at 50% 0%, #EFEBE5 0%, #E2DCD3 60%, #D6CFC4 100%);
+  }
+  html.standalone .app {
+    width: min(1360px, 90vw); height: min(880px, 88vh); height: min(880px, 88dvh);
+    background: var(--bg); border-radius: 20px; overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(43, 45, 48, .06), 0 24px 64px rgba(43, 45, 48, .18), 0 6px 18px rgba(43, 45, 48, .08);
+    animation: boxIn .35s cubic-bezier(.2, .8, .2, 1) both;
+  }
+}
+@keyframes boxIn { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: none; } }
 
 /* iframe-Modus (?embed=1): feste Höhe, die per postMessage gemeldet wird */
 html.embed, html.embed body { height: auto; overflow: visible; }
@@ -4471,6 +4491,10 @@ const Lead = (() => {
    ===================================================================== */
 (async function boot() {
   if (EMBED) document.documentElement.classList.add('embed');
+  // Im Website-Popup (embed.js): Esc schließt das Popup, auch wenn der Fokus im Konfigurator liegt
+  if (IN_IFRAME && QS.get('popup') === '1') {
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !e.defaultPrevented) window.parent.postMessage({ type: 'cg-configurator:close' }, '*'); });
+  }
   const qLang = (QS.get('lang') || '').toLowerCase();
   state.lang = I18N[qLang] ? qLang : 'fr';
   state.utm = readUtm();

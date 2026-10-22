@@ -26,7 +26,17 @@ Alle Einstellungen stehen oben im `<script>`-Block unter **1. CONFIG**.
 
 **Direktlink (empfohlen für Ads):** `https://…/index.html?lang=fr&utm_source=…`
 
-**iframe:**
+**Popup (empfohlen für die Website):** Der Konfigurator öffnet sich auf dem Desktop als große, zentrierte Box über der abgedunkelten Seite (Esc, Klick daneben oder × schließt; die Konfiguration bleibt erhalten). Auf dem Handy und bei kleinen Fenstern (unter 1100 × 700 px) öffnet er sich als ganze Seite.
+```html
+<script src="https://…/embed.js" data-lang="fr" defer></script>
+<a href="#" data-cg-pergola>Configurer ma pergola</a>
+<a href="#" data-cg-pergola data-lang="de">Pergola konfigurieren</a>
+```
+Per JavaScript: `CGPergola.open({ lang: 'de' })`, `CGPergola.close()`. UTM-Parameter der Seite werden weitergereicht, Schritte und Leads landen im `dataLayer` der Website (zusätzlich `config_popup_open` / `config_popup_close`). Testseite: `demo.html`.
+
+**Direktlink auf dem Desktop:** erscheint ebenfalls als Box auf ruhigem Hintergrund (ab 1100 × 700 px), auf dem Handy randlos.
+
+**iframe (fest in die Seite eingebettet):**
 ```html
 <iframe id="cg-config" src="https://…/index.html?embed=1&lang=fr"
         style="width:100%;border:0;height:780px" allow="geolocation; clipboard-write"
