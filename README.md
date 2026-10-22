@@ -61,7 +61,14 @@ Alle Einstellungen stehen oben im `<script>`-Block unter **1. CONFIG**.
 - **Regen-Demo** (Button „Regen“): Himmel zieht zu, Regen fällt, die Lamellen schließen (Tuchdach fährt aus), Wasser tritt an den Pfosten aus; danach zurück zum vorherigen Zustand. Texte in `I18N.*.rain`.
 - **Nacht:** Lichtteppich der LED und Glühen der Heizstrahler am Boden. Ein direkt auf Schritt 7 geöffneter Link startet ebenfalls im Abend.
 - **Umgebung:** Hauswand mit Faschen und Fensterbänken, Terrasse mit Randsteinen, Lounge mit Polstern und Zierkissen, Pflanzkübel mit Bäumchen, Hecke, Wolken.
-- **Qualitätsstufen:** Auf dem Desktop Kantenglättung und Schattenauflösung 2048, auf Handys 1024; Schatten bleiben immer an.
+- **Profil-Details:** umlaufende Regenrinne mit Profillippen im Träger, Endkappen an jeder Lamelle, Motorgehäuse unter dem Seitenträger, Pfostenkappen, Sockelblende und Edelstahl-Sechskantschrauben mit Unterlegscheiben auf der Fußplatte. Geschlossene Lamellen überlappen, ohne Lichtspalt.
+- **Oberflächen:** Holzdielen mit Maserung, Ästen, Fugen und Relief, Scheibenputz an der Fassade, Leinwandgewebe beim Tuch-/PVC-Dach, feine Pulverstruktur auf dem Aluminium (Desktop), Rasen mit Grasbüscheln rund um die Terrasse, buschige Hecke, Bäumchen mit unregelmäßiger Krone.
+- **Glas:** klare Scheibe plus Spiegelschicht (Fresnel: frontal durchsichtig, im flachen Winkel spiegelnd). Auf dem Desktop spiegeln Glas und Fenster die tatsächliche Szene samt Tageszeit (Würfelkamera, wird nur bei Änderungen neu aufgenommen).
+- **Qualitätsstufen:**
+  - **Desktop / starke Geräte (HQ):** Umgebungsverdeckung (GTAO) für die feinen Verschattungen in Ecken, Fugen, zwischen den Lamellen und an der Hauswand; MSAA-Kantenglättung; abends ein dezenter Lichtschein um LED und Heizstrahler; weiche Schatten, die mit dem Abstand zum Schattenwerfer unschärfer werden (PCSS); doppelte Texturauflösung; Schattenauflösung 2048.
+  - **Handys und kleine Bildschirme:** die bisherige, schnelle Darstellung (Schattenauflösung 1024, Kontaktschatten, keine Nachbearbeitung). Schatten bleiben immer an.
+  - **Automatik:** Ist ein Gerät zu langsam (unter etwa 28 Bilder/s), schaltet der Konfigurator nach rund 1,5 s zuerst die HQ-Effekte ab und senkt danach bei Bedarf die Auflösung.
+  - **Zum Testen:** `?q=hq` erzwingt die hohe, `?q=lo` die einfache Stufe (ohne Automatik).
 
 ## Tracking
 

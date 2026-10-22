@@ -1458,8 +1458,11 @@ const Scene3D = (() => {
   let structSig = '', lastState = null, step = 1;
   let lastInteract = performance.now(), camTween = null, idleDir = 1, hasInteracted = false;
   let pickEnabled = false, hoverSide = null, panelSide = null, downPos = null;
-  let perf = { frames: 0, acc: 0, degraded: false };
+  let perf = { frames: 0, acc: 0, degraded: false, since: 0 };
   let refitTimer = 0, wowDone = false;
+  /* Qualitätsstufe: HQ = Desktop/starke Geräte (Umgebungsverdeckung, MSAA, Leuchten, weiche Schatten, echte Glasspiegelung).
+     ?q=hq / ?q=lo erzwingt eine Stufe (zum Testen). */
+  let HQ = false, qForced = false, post = null, envCam = null, envPm = null, envRT = null, envDirty = false, envLast = 0, shadowK = 0;
   const H = 2.4;                                   // lichte Höhe unter dem Träger
   const callbacks = { onSidePick: null, onLouver: null, onInteract: null };
   const mats = {};
@@ -1506,36 +1509,100 @@ const Scene3D = (() => {
   }
   let seed = 7;
   const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+  /* Farb- und Reliefkarte (Bump) aus demselben Zufallsstrom zeichnen, damit Fugen, Maserung und Relief deckungsgleich sind */
+  function texPair(w, h, draw) {
+    const c1 = document.createElement('canvas'), c2 = document.createElement('canvas');
+    c1.width = c2.width = w; c1.height = c2.height = h;
+    draw(c1.getContext('2d'), c2.getContext('2d'), w, h);
+    const mk = (c, color) => {
+      const tx = new T.CanvasTexture(c);
+      tx.colorSpace = color ? T.SRGBColorSpace : T.NoColorSpace;
+      tx.wrapS = tx.wrapT = T.RepeatWrapping;
+      tx.anisotropy = Math.min(HQ ? 16 : 8, renderer.capabilities.getMaxAnisotropy());
+      return tx;
+    };
+    return [mk(c1, true), mk(c2, false)];
+  }
   function makeTextures() {
-    // Helle Holzdielen: 8 Dielen à 14,5 cm, Kachel 1,16 × 2,32 m
-    tex.planks = canvasTex(512, 1024, (g, w, h) => {
+    const Q = HQ ? 2 : 1;                                   // Desktop: doppelte Texturauflösung
+    // Holzdielen (Thermoholz/WPC hell): 8 Dielen à 14,5 cm, Kachel 1,16 × 2,32 m – Maserung, Äste, Stoßfugen, Relief
+    [tex.planks, tex.planksBump] = texPair(512 * Q, 1024 * Q, (g, b, w, h) => {
       const n = 8, pw = w / n;
+      b.fillStyle = '#000'; b.fillRect(0, 0, w, h);
       for (let i = 0; i < n; i++) {
-        const l = 58 + rnd() * 6;
-        g.fillStyle = `hsl(32, 26%, ${l}%)`; g.fillRect(i * pw, 0, pw, h);
-        for (let k = 0; k < 26; k++) {
-          g.strokeStyle = `rgba(110, 80, 50, ${0.04 + rnd() * 0.06})`; g.lineWidth = 1 + rnd();
-          const x = i * pw + rnd() * pw; g.beginPath(); g.moveTo(x, 0);
-          g.bezierCurveTo(x + rnd() * 6 - 3, h * 0.33, x + rnd() * 6 - 3, h * 0.66, x + rnd() * 4 - 2, h); g.stroke();
+        const x0 = i * pw, l = 56 + rnd() * 8, hue = 28 + rnd() * 8;
+        g.fillStyle = `hsl(${hue}, 27%, ${l}%)`; g.fillRect(x0, 0, pw, h);
+        // leicht gewölbte Diele im Relief (Mitte höher als die Kanten)
+        const gr = b.createLinearGradient(x0, 0, x0 + pw, 0);
+        gr.addColorStop(0, '#5c5c5c'); gr.addColorStop(0.5, '#a6a6a6'); gr.addColorStop(1, '#5c5c5c');
+        b.fillStyle = gr; b.fillRect(x0, 0, pw, h);
+        // Maserung: lange, leicht wellige Jahresringe
+        for (let k = 0; k < 34 * Q; k++) {
+          const x = x0 + 2 + rnd() * (pw - 4), dark = rnd() > 0.35, a = 0.035 + rnd() * 0.07, amp = 1 + rnd() * 3 * Q, f = 2 + rnd() * 5;
+          g.strokeStyle = dark ? `rgba(105, 72, 42, ${a})` : `rgba(255, 236, 205, ${a * 0.8})`;
+          b.strokeStyle = dark ? 'rgba(0,0,0,.10)' : 'rgba(255,255,255,.06)';
+          g.lineWidth = b.lineWidth = (0.6 + rnd() * 1.4) * Q;
+          [g, b].forEach(c => {
+            c.beginPath(); c.moveTo(x, 0);
+            for (let y = 0; y <= h; y += 16 * Q) c.lineTo(x + Math.sin(y / h * Math.PI * f + k) * amp, y);
+            c.stroke();
+          });
         }
+        // Äste
+        if (rnd() > 0.45) {
+          const kx = x0 + pw * (0.3 + rnd() * 0.4), ky = rnd() * h, rx = (3 + rnd() * 3) * Q, ry = rx * (1.6 + rnd());
+          g.fillStyle = 'rgba(92, 60, 34, .45)'; g.beginPath(); g.ellipse(kx, ky, rx, ry, 0, 0, 7); g.fill();
+          g.strokeStyle = 'rgba(92, 60, 34, .18)'; g.lineWidth = Q;
+          for (let r = 1; r < 4; r++) { g.beginPath(); g.ellipse(kx, ky, rx + r * 3 * Q, ry + r * 5 * Q, 0, 0, 7); g.stroke(); }
+          b.fillStyle = 'rgba(0,0,0,.25)'; b.beginPath(); b.ellipse(kx, ky, rx, ry, 0, 0, 7); b.fill();
+        }
+        // Stoßfuge und Längsfuge (dunkel und vertieft)
         const j = rnd() * h;
-        g.fillStyle = 'rgba(70, 50, 30, .45)'; g.fillRect(i * pw, j, pw, 3);
-        g.fillStyle = 'rgba(70, 50, 30, .55)'; g.fillRect(i * pw, 0, 3, h);
+        g.fillStyle = 'rgba(58, 40, 24, .6)'; g.fillRect(x0, j, pw, 2.5 * Q);
+        g.fillStyle = 'rgba(58, 40, 24, .7)'; g.fillRect(x0, 0, 2.5 * Q, h);
+        b.fillStyle = '#000'; b.fillRect(x0, j, pw, 2.5 * Q); b.fillRect(x0, 0, 2.5 * Q, h);
       }
     });
-    tex.plaster = canvasTex(256, 256, (g, w, h) => {
+    // Fassadenputz: Scheibenputz-Korn mit leichter Wolkigkeit
+    [tex.plaster, tex.plasterBump] = texPair(256 * Q, 256 * Q, (g, b, w, h) => {
       g.fillStyle = '#ECE7DF'; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 2600; i++) {
-        g.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,.35)' : 'rgba(120,105,85,.08)';
-        g.fillRect(rnd() * w, rnd() * h, 1 + rnd() * 2, 1 + rnd() * 2);
+      b.fillStyle = '#808080'; b.fillRect(0, 0, w, h);
+      for (let i = 0; i < 14; i++) {
+        const x = rnd() * w, y = rnd() * h, r = (30 + rnd() * 60) * Q;
+        const gr = g.createRadialGradient(x, y, 0, x, y, r);
+        const c = rnd() > 0.5 ? '255,255,255' : '150,135,115';
+        gr.addColorStop(0, `rgba(${c},.06)`); gr.addColorStop(1, `rgba(${c},0)`);
+        g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      }
+      for (let i = 0; i < 4200 * Q * Q; i++) {
+        const x = rnd() * w, y = rnd() * h, r = (0.6 + rnd() * 1.3) * Q, up = rnd() > 0.45;
+        g.fillStyle = up ? 'rgba(255,255,255,.30)' : 'rgba(120,105,85,.10)';
+        g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+        b.fillStyle = up ? 'rgba(255,255,255,.55)' : 'rgba(0,0,0,.45)';
+        b.beginPath(); b.arc(x, y, r, 0, 7); b.fill();
       }
     });
-    tex.grass = canvasTex(256, 256, (g, w, h) => {
-      g.fillStyle = '#76914F'; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 5000; i++) {
-        const l = 26 + rnd() * 18;
-        g.fillStyle = `hsla(${80 + rnd() * 20}, 38%, ${l}%, .5)`;
-        g.fillRect(rnd() * w, rnd() * h, 1, 2 + rnd() * 3);
+    // Rasen: Halme in mehreren Grüntönen, vereinzelt Klee und trockene Stellen
+    [tex.grass, tex.grassBump] = texPair(256 * Q, 256 * Q, (g, b, w, h) => {
+      g.fillStyle = '#6F8B4A'; g.fillRect(0, 0, w, h);
+      b.fillStyle = '#606060'; b.fillRect(0, 0, w, h);
+      for (let i = 0; i < 10; i++) {
+        const x = rnd() * w, y = rnd() * h, r = (20 + rnd() * 40) * Q, gr = g.createRadialGradient(x, y, 0, x, y, r);
+        const c = rnd() > 0.5 ? '160,170,90' : '60,90,40';
+        gr.addColorStop(0, `rgba(${c},.18)`); gr.addColorStop(1, `rgba(${c},0)`);
+        g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      }
+      for (let i = 0; i < 6500 * Q * Q; i++) {
+        const l = 24 + rnd() * 22, x = rnd() * w, y = rnd() * h, len = (2 + rnd() * 4) * Q, a = rnd() * 0.8 - 0.4;
+        g.strokeStyle = `hsla(${78 + rnd() * 26}, ${34 + rnd() * 12}%, ${l}%, .55)`; g.lineWidth = Q * 0.8;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.sin(a) * len, y - Math.cos(a) * len); g.stroke();
+        b.strokeStyle = `rgba(255,255,255,${0.1 + rnd() * 0.15})`; b.lineWidth = Q * 0.8;
+        b.beginPath(); b.moveTo(x, y); b.lineTo(x + Math.sin(a) * len, y - Math.cos(a) * len); b.stroke();
+      }
+      for (let i = 0; i < 40 * Q; i++) {            // Kleeblätter
+        const x = rnd() * w, y = rnd() * h;
+        g.fillStyle = 'rgba(70,110,50,.5)';
+        for (let k = 0; k < 3; k++) { g.beginPath(); g.arc(x + Math.cos(k * 2.1) * 1.6 * Q, y + Math.sin(k * 2.1) * 1.6 * Q, 1.5 * Q, 0, 7); g.fill(); }
       }
     });
     tex.solar = canvasTex(64, 64, (g, w, h) => {
@@ -1544,12 +1611,25 @@ const Scene3D = (() => {
       g.strokeStyle = 'rgba(160,180,210,.35)'; g.lineWidth = 1;
       g.beginPath(); g.moveTo(w / 2, 0); g.lineTo(w / 2, h); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
     });
-    // Pulverbeschichtung: feine, unregelmäßige Rauheit (grün-Kanal = Rauheit)
-    tex.powder = canvasTex(128, 128, (g, w, h) => {
+    // Pulverbeschichtung: feine, unregelmäßige Rauheit (grün-Kanal = Rauheit) – zugleich feine Struktur im Relief
+    tex.powder = canvasTex(128 * Q, 128 * Q, (g, w, h) => {
       g.fillStyle = 'rgb(118,118,118)'; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 3500; i++) { const v = 95 + Math.floor(rnd() * 60); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(rnd() * w, rnd() * h, 1, 1); }
+      for (let i = 0; i < 3500 * Q * Q; i++) { const v = 95 + Math.floor(rnd() * 60); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(rnd() * w, rnd() * h, 1, 1); }
     }, true);
     tex.powder.colorSpace = T.NoColorSpace; tex.powder.repeat.set(4, 4);
+    // Markisentuch (Acryl/PVC): feines Leinwandgewebe
+    [tex.fabric, tex.fabricBump] = texPair(128 * Q, 128 * Q, (g, b, w, h) => {
+      const t = 4 * Q;
+      g.fillStyle = '#E6E6E6'; g.fillRect(0, 0, w, h);
+      b.fillStyle = '#808080'; b.fillRect(0, 0, w, h);
+      for (let y = 0; y < h; y += t) for (let x = 0; x < w; x += t) {
+        const over = ((x + y) / t) % 2 === 0, v = 0.9 + rnd() * 0.1;
+        g.fillStyle = `rgba(${over ? 255 : 200},${over ? 255 : 200},${over ? 255 : 200},${0.35 * v})`;
+        b.fillStyle = over ? 'rgba(255,255,255,.55)' : 'rgba(0,0,0,.45)';
+        if (over) { g.fillRect(x + 0.5, y + t * 0.15, t - 1, t * 0.7); b.fillRect(x + 0.5, y + t * 0.15, t - 1, t * 0.7); }
+        else { g.fillRect(x + t * 0.15, y + 0.5, t * 0.7, t - 1); b.fillRect(x + t * 0.15, y + 0.5, t * 0.7, t - 1); }
+      }
+    });
     // Kontaktschatten (radialer Verlauf)
     tex.blob = canvasTex(128, 128, (g, w, h) => {
       const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
@@ -1563,9 +1643,17 @@ const Scene3D = (() => {
       gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(0.5, 'rgba(255,255,255,.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = gr; g.fillRect(0, 0, w, h);
     }, false);
-    tex.leaves = canvasTex(128, 128, (g, w, h) => {
-      g.fillStyle = '#4C6B39'; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 1800; i++) { g.fillStyle = `hsla(${88 + rnd() * 30}, 40%, ${20 + rnd() * 28}%, .8)`; g.beginPath(); g.ellipse(rnd() * w, rnd() * h, 1.5 + rnd() * 2.5, 1 + rnd() * 1.5, rnd() * 3, 0, 7); g.fill(); }
+    // Hecke/Laub: überlappende Blätter mit Licht- und Schattenseite
+    [tex.leaves, tex.leavesBump] = texPair(128 * Q, 128 * Q, (g, b, w, h) => {
+      g.fillStyle = '#3F5C30'; g.fillRect(0, 0, w, h);
+      b.fillStyle = '#000'; b.fillRect(0, 0, w, h);
+      for (let i = 0; i < 2200 * Q * Q; i++) {
+        const x = rnd() * w, y = rnd() * h, rx = (1.6 + rnd() * 2.6) * Q, ry = (0.9 + rnd() * 1.4) * Q, a = rnd() * 3, l = 18 + rnd() * 30;
+        g.fillStyle = `hsla(${86 + rnd() * 32}, ${30 + rnd() * 12}%, ${l * 0.85}%, .85)`;
+        g.beginPath(); g.ellipse(x, y, rx, ry, a, 0, 7); g.fill();
+        b.fillStyle = `rgba(255,255,255,${0.25 + l / 80})`;
+        b.beginPath(); b.ellipse(x, y, rx, ry, a, 0, 7); b.fill();
+      }
     });
     tex.zip = canvasTex(64, 64, (g, w, h) => {
       g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
@@ -1578,21 +1666,28 @@ const Scene3D = (() => {
   function std(params) { const m = new T.MeshStandardMaterial(params); m.userData.envBase = m.envMapIntensity; envMats.push(m); return m; }
   function makeMaterials() {
     // Pulverbeschichtetes Aluminium: matte Struktur + leichter Klarlack-Glanz auf den Kanten
-    const powder = (color) => { const m = new T.MeshPhysicalMaterial({ color, roughness: 0.5, metalness: 0.3, roughnessMap: tex.powder, clearcoat: 0.35, clearcoatRoughness: 0.42 }); m.userData.envBase = 1; envMats.push(m); return m; };
+    // HQ: zusätzlich feine Pulverstruktur im Relief (sichtbar in Nahansicht und Streiflicht)
+    const powder = (color) => { const m = new T.MeshPhysicalMaterial({ color, roughness: 0.5, metalness: 0.3, roughnessMap: tex.powder, clearcoat: 0.35, clearcoatRoughness: 0.42, ...(HQ ? { bumpMap: tex.powder, bumpScale: 0.25 } : {}) }); m.userData.envBase = 1; envMats.push(m); return m; };
     mats.frame = powder(COLORS.ral7016.hex);
     mats.roof = powder(COLORS.ral7016.hex);
-    mats.fabric = std({ color: COLORS.ral7016.hex, roughness: 0.9, metalness: 0, side: T.DoubleSide });
+    mats.fabric = std({ color: COLORS.ral7016.hex, map: tex.fabric, bumpMap: tex.fabricBump, bumpScale: 0.9, roughness: 0.9, metalness: 0, side: T.DoubleSide });
     mats.solar = std({ color: '#ffffff', map: tex.solar, roughness: 0.25, metalness: 0.6 });
     mats.glass = new T.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.04, metalness: 0, transparent: true, opacity: 0.2,
       side: T.DoubleSide, depthWrite: false, envMapIntensity: 1.6, clearcoat: 1 });
     mats.glass.userData.envBase = 1.6; envMats.push(mats.glass);
+    // Spiegelschicht für Glas: nur die Reflexion (Fresnel – frontal schwach, im flachen Winkel stark), additiv über der klaren Scheibe.
+    // Im HQ-Modus spiegelt sie die tatsächliche Szene (Himmel, Haus, Garten, Tageszeit), siehe updateEnvProbe().
+    mats.glassRefl = new T.MeshPhysicalMaterial({ color: '#000000', roughness: 0.02, metalness: 0, transparent: true, depthWrite: false,
+      blending: T.AdditiveBlending, side: T.DoubleSide, envMapIntensity: 1.5, specularIntensity: 1, ior: 1.52 });
+    mats.glassRefl.userData.envBase = 1.5; envMats.push(mats.glassRefl);
+    if (HQ) { mats.glass.opacity = 0.12; mats.glass.color.set('#E4F0EC'); }
     mats.zip = std({ color: '#47494C', roughness: 0.95, transparent: true, opacity: 0.86, side: T.DoubleSide, alphaMap: tex.zip });
     mats.led = std({ color: '#FFF4E0', emissive: '#FFC27A', emissiveIntensity: 0.3, roughness: 0.4 });
     mats.heaterBody = std({ color: '#2A2C2F', roughness: 0.4, metalness: 0.6 });
     mats.heaterGlow = std({ color: '#5A2A10', emissive: '#FF6A1A', emissiveIntensity: 0.25, roughness: 0.5 });
-    mats.terrace = std({ map: tex.planks, roughness: 0.82, metalness: 0 });
-    mats.lawn = std({ map: tex.grass, roughness: 1, metalness: 0 });
-    mats.plaster = std({ map: tex.plaster, roughness: 0.95, metalness: 0 });
+    mats.terrace = std({ map: tex.planks, bumpMap: tex.planksBump, bumpScale: HQ ? 1.6 : 1.1, roughness: 0.82, metalness: 0 });
+    mats.lawn = std({ map: tex.grass, bumpMap: tex.grassBump, bumpScale: 0.35, roughness: 1, metalness: 0 });
+    mats.plaster = std({ map: tex.plaster, bumpMap: tex.plasterBump, bumpScale: HQ ? 0.4 : 0.3, roughness: 0.95, metalness: 0 });
     mats.plinth = std({ color: '#B8B1A6', roughness: 0.9 });
     // Schattenempfänger: weniger Umgebungslicht, damit Schatten klar und satt erscheinen
     [mats.terrace, mats.lawn, mats.plaster, mats.plinth].forEach(m => { m.envMapIntensity = 0.12; m.userData.envBase = 0.12; });
@@ -1600,14 +1695,21 @@ const Scene3D = (() => {
     mats.doorFrame = std({ color: '#2F3236', roughness: 0.45, metalness: 0.5 });
     mats.groove = std({ color: '#121315', roughness: 0.8, metalness: 0.2 });
     mats.sensor = std({ color: '#ECEBE7', roughness: 0.5, metalness: 0.1 });
-    mats.doorGlass = std({ color: '#2B3640', roughness: 0.05, metalness: 0.2, emissive: '#E89A55', emissiveIntensity: 0, envMapIntensity: 1.4 });
+    mats.doorGlass = std({ color: HQ ? '#44515D' : '#2B3640', roughness: 0.05, metalness: 0.2, emissive: '#E89A55', emissiveIntensity: 0, envMapIntensity: 1.4 });
     mats.doorGlass.userData.envBase = 1.4;
     mats.sofa = std({ color: '#D9D2C7', roughness: 0.95 });
     mats.cushion = std({ color: '#B9AE9E', roughness: 0.95 });
     mats.wood = std({ color: '#6E5038', roughness: 0.7 });
     mats.potMat = std({ color: '#3A3D41', roughness: 0.55, metalness: 0.2 });
-    mats.leaf = std({ color: '#6E8250', roughness: 0.9, flatShading: true });
-    mats.hedge = std({ map: tex.leaves, roughness: 1 });
+    mats.leaf = std({ color: '#5F7A45', roughness: 0.9, flatShading: true });
+    mats.leaf2 = std({ color: '#7F9A55', roughness: 0.85, flatShading: true });
+    mats.hedge = std({ map: tex.leaves, bumpMap: tex.leavesBump, bumpScale: 1.1, roughness: 1 });
+    mats.blade = std({ color: '#FFFFFF', roughness: 1 });                              // Grasbüschel (Farbe je Instanz)
+    mats.blade.envMapIntensity = 0.12; mats.blade.userData.envBase = 0.12;
+    mats.cap = std({ color: '#2A2C2F', roughness: 0.55, metalness: 0.2 });              // Lamellen-Endkappen
+    mats.screw = std({ color: '#A3A6AA', roughness: 0.3, metalness: 0.95 });            // Edelstahlschrauben
+    SCREW.head = new T.CylinderGeometry(0.0085, 0.0085, 0.008, 6); SCREW.head.userData.shared = true;
+    SCREW.washer = new T.CylinderGeometry(0.0125, 0.0125, 0.002, 16); SCREW.washer.userData.shared = true;
     mats.trunk = std({ color: '#6B5A48', roughness: 0.9 });
     mats.soil = std({ color: '#3B2F25', roughness: 1 });
     mats.curb = std({ color: '#A7A196', roughness: 0.85 });
@@ -1672,13 +1774,14 @@ const Scene3D = (() => {
 
     const lawn = new T.Mesh(new T.CircleGeometry(70, 48), mats.lawn);
     lawn.rotation.x = -Math.PI / 2; lawn.position.y = -0.062; lawn.receiveShadow = true;
-    tex.grass.repeat.set(36, 36);
+    tex.grass.repeat.set(36, 36); tex.grassBump.repeat.copy(tex.grass.repeat);
     scene.add(lawn);
   }
 
   /* ---------- Bau-Helfer ---------- */
   /* Kantenradius je Material: Aluminiumprofile, Polster und Holz bekommen echte, leicht gerundete Kanten */
   const ROUND = new Map();
+  const SCREW = {};
   function box(w, h, d, mat, x = 0, y = 0, z = 0, cast = true, receive = false) {
     const r = ROUND.get(mat), mn = Math.min(w, h, d);
     const geo = r && mn > 0.03 ? new RoundedBox(w, h, d, 2, Math.min(r, mn * 0.3)) : new T.BoxGeometry(w, h, d);
@@ -1693,10 +1796,76 @@ const Scene3D = (() => {
     m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); m.renderOrder = 1;
     group.add(m); return m;
   }
+  /* Unregelmäßige Oberfläche: Verschiebung nur abhängig von der Position → keine Risse an geteilten Kanten */
+  function lumpy(geo, amp) {
+    const pos = geo.attributes.position, v = new T.Vector3(), c = new T.Vector3();
+    geo.computeBoundingBox(); geo.boundingBox.getCenter(c);
+    const ph = rnd() * 10;
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i);
+      const n = Math.sin(v.x * 9.1 + ph) * Math.cos(v.y * 7.3 + ph * 0.7) + Math.sin(v.z * 8.7 + v.x * 3.1 + ph * 1.3) * 0.7 + Math.sin((v.x + v.y + v.z) * 23 + ph) * 0.25;
+      const d = v.clone().sub(c); const len = d.length() || 1;
+      v.addScaledVector(d.divideScalar(len), n * amp);
+      pos.setXYZ(i, v.x, v.y, v.z);
+    }
+    geo.computeVertexNormals();
+    return geo;
+  }
+  /* Hecke: unterteilter Quader mit buschiger, unregelmäßiger Oberfläche */
+  function hedge(w, h, d, x, z) {
+    const g = new T.BoxGeometry(w, h, d, Math.max(2, Math.round(w * 5)), 6, Math.max(2, Math.round(d * 5)));
+    const pos = g.attributes.position, ph = rnd() * 10;
+    for (let i = 0; i < pos.count; i++) {
+      const vx = pos.getX(i), vy = pos.getY(i), vz = pos.getZ(i);
+      if (vy < -h / 2 + 0.01) continue;                                  // Fuß bleibt auf dem Boden
+      const n = Math.sin(vx * 6.3 + ph) * Math.cos(vz * 5.1 + ph) * 0.5 + Math.sin(vx * 17 + vz * 13 + vy * 11) * 0.3;
+      const k = 0.045 * n;
+      pos.setXYZ(i, vx + Math.sign(vx) * k * (Math.abs(vx) > w / 2 - 0.01 ? 1 : 0.3), vy + (vy > h / 2 - 0.01 ? k * 1.6 : 0), vz + Math.sign(vz) * k * (Math.abs(vz) > d / 2 - 0.01 ? 1 : 0.3));
+    }
+    g.computeVertexNormals();
+    const m = new T.Mesh(g, mats.hedge); m.position.set(x, 0.6, z); m.castShadow = true; m.receiveShadow = true;
+    return m;
+  }
+  /* Rasen mit Struktur: Grasbüschel als Instanzen rund um die Terrasse (nur im Nahbereich, wo man sie sieht) */
+  let bladeGeo = null;
+  function buildGrass(s, tw, td, tz, wall) {
+    if (!bladeGeo) {
+      const v = [];
+      const nrm = [];
+      for (let b = 0; b < 5; b++) {
+        const a = b * 1.26 + 0.4, w = 0.008, h = 0.035 + (b % 3) * 0.014, lean = 0.016 * (b % 2 ? 1 : -1);
+        const cx = Math.cos(a), cz = Math.sin(a);
+        const p0 = [-cz * w, 0, cx * w], p1 = [cz * w, 0, -cx * w], p2 = [cx * lean, h, cz * lean];
+        v.push(...p0, ...p1, ...p2, ...p1, ...p0, ...p2);                   // beide Seiten, gleiche (nach oben weisende) Normale
+        for (let k = 0; k < 6; k++) nrm.push(cx * 0.35, 0.94, cz * 0.35);
+      }
+      bladeGeo = new T.BufferGeometry(); bladeGeo.userData.shared = true;
+      bladeGeo.setAttribute('position', new T.Float32BufferAttribute(v, 3));
+      bladeGeo.setAttribute('normal', new T.Float32BufferAttribute(nrm, 3));
+    }
+    const count = HQ ? 12000 : 4500, R = Math.max(tw, td) / 2 + 3.5;
+    const mesh = new T.InstancedMesh(bladeGeo, mats.blade, count);
+    const m4 = new T.Matrix4(), q = new T.Quaternion(), up = new T.Vector3(0, 1, 0), p = new T.Vector3(), sc = new T.Vector3(), col = new T.Color();
+    seed = 31; let n = 0, guard = 0;
+    const x0 = -tw / 2 - 0.2, x1 = tw / 2 + 0.2, z0 = tz - td / 2 - 0.2, z1 = tz + td / 2 + 0.2;
+    while (n < count && guard++ < count * 4) {
+      const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * R;
+      const x = Math.cos(a) * r, z = tz + Math.sin(a) * r;
+      if (x > x0 && x < x1 && z > z0 && z < z1) continue;                 // nicht auf der Terrasse
+      if (wall && z < 0.05) continue;                                       // nicht im Haus
+      const k = 0.7 + rnd() * 0.8;
+      q.setFromAxisAngle(up, rnd() * 6.28); p.set(x, -0.062, z); sc.set(k, k * (0.8 + rnd() * 0.5), k);
+      m4.compose(p, q, sc); mesh.setMatrixAt(n, m4);
+      col.setHSL(0.22 + rnd() * 0.04, 0.36 + rnd() * 0.1, 0.2 + rnd() * 0.08); mesh.setColorAt(n, col);   // Ton der Rasenfläche, kein Glitzern
+      n++;
+    }
+    mesh.count = n; mesh.receiveShadow = true; mesh.castShadow = false; mesh.userData.noAO = true;
+    groups.furniture.add(mesh);
+  }
   function disposeTree(obj) {
     if (!obj) return;
     obj.traverse(o => {
-      if (o.geometry) o.geometry.dispose();
+      if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
       if (o.userData.ownMaterial && o.material) { if (o.material.map && o.material.map !== tex.blob) o.material.map.dispose(); o.material.dispose(); }
     });
     obj.parent && obj.parent.remove(obj);
@@ -1743,10 +1912,18 @@ const Scene3D = (() => {
     postPositions(s, M, W, D).forEach(p => {
       const top = H + fh + (isGlass ? rise * (1 - p.z / D) : 0);
       pg.add(box(pw, top, pw, mats.frame, p.x, top / 2, p.z));
-      // Fußplatte mit vier Schrauben
+      // Pfostenkappe (leicht überstehend, mit Schattenfuge)
+      pg.add(box(pw + 0.012, 0.014, pw + 0.012, mats.frame, p.x, top + 0.007, p.z, false));
+      pg.add(box(pw + 0.002, 0.004, pw + 0.002, mats.groove, p.x, top - 0.002, p.z, false));
+      // Fußplatte mit Sockelblende und vier Edelstahl-Sechskantschrauben mit Unterlegscheibe
       const fp = pw + 0.08;
       pg.add(box(fp, 0.014, fp, mats.frame, p.x, 0.007, p.z, false, true));
-      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => pg.add(box(0.016, 0.01, 0.016, mats.groove, p.x + a * (fp / 2 - 0.018), 0.019, p.z + b * (fp / 2 - 0.018), false)));
+      pg.add(box(pw + 0.014, 0.06, pw + 0.014, mats.frame, p.x, 0.044, p.z, false));
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => {
+        const sx = p.x + a * (fp / 2 - 0.02), sz = p.z + b * (fp / 2 - 0.02);
+        const washer = new T.Mesh(SCREW.washer, mats.screw); washer.position.set(sx, 0.0155, sz); pg.add(washer);
+        const head = new T.Mesh(SCREW.head, mats.screw); head.position.set(sx, 0.022, sz); pg.add(head);
+      });
       // Wasseraustritt (Entwässerung durch den Pfosten) an den vorderen Pfosten
       if (!p.back && !p.mid) pg.add(box(pw * 0.45, 0.035, 0.006, mats.groove, p.x, 0.07, p.z + pw / 2 + 0.002, false));
       contact(pg, p.x, p.z, pw * 4.2, pw * 4.2, 0.4);
@@ -1765,8 +1942,30 @@ const Scene3D = (() => {
     }
 
     decorateFrame(M, pg, W, D, zIn, pw, fh, wall);
-    // Wasserführende Rinnen oben in den Seitenträgern (bioklimatisch / ausfahrbar)
-    if (M.type !== 'glass') [-1, 1].forEach(sx => pg.add(box(pw * 0.42, 0.004, D - zIn - pw * 1.2, mats.groove, sx * (W / 2 - pw / 2), H + fh + 0.002, (zIn + D - pw) / 2, false)));
+    // Sichtbare, umlaufende Regenrinne oben in den Trägern (bioklimatisch / ausfahrbar): Rinnenboden + zwei Profillippen
+    if (M.type !== 'glass') {
+      const gw = pw * 0.5, lip = 0.012, lh = 0.016, y = H + fh;
+      const runs = [{ x: 0, z: D - pw / 2, len: W - pw * 0.6, ax: 'x' }];
+      [-1, 1].forEach(sx => runs.push({ x: sx * (W / 2 - pw / 2), z: (zIn + D - pw / 2) / 2, len: D - pw / 2 - zIn - pw * 0.3, ax: 'z' }));
+      if (!wall) runs.push({ x: 0, z: pw / 2, len: W - pw * 0.6, ax: 'x' });
+      runs.forEach(r => {
+        const dim = (a, h, c) => (r.ax === 'x' ? [a, h, c] : [c, h, a]);
+        const [w0, h0, d0] = dim(r.len, 0.003, gw);
+        pg.add(box(w0, h0, d0, mats.groove, r.x, y + 0.0015, r.z, false));
+        [-1, 1].forEach(e => {
+          const [w1, h1, d1] = dim(r.len, lh, lip);
+          const o = e * (gw / 2 + lip / 2);
+          pg.add(box(w1, h1, d1, mats.frame, r.x + (r.ax === 'z' ? o : 0), y + lh / 2, r.z + (r.ax === 'x' ? o : 0), false));
+        });
+      });
+      // Motorgehäuse unter dem Seitenträger (Linearmotor bzw. Tuchantrieb), mit Wartungsdeckel und Kabelführung
+      const mz = clamp(D * 0.35, zIn + 0.45, D - pw - 0.45);
+      const mot = new T.Group(); mot.position.set(-W / 2 + pw / 2, H, mz); pg.add(mot);
+      mot.add(box(pw * 0.78, 0.085, 0.62, mats.frame, 0, -0.0425, 0, false));
+      mot.add(box(pw * 0.8, 0.004, 0.6, mats.groove, 0, -0.087, 0, false));
+      [-1, 1].forEach(e => mot.add(box(pw * 0.6, 0.006, 0.01, mats.groove, 0, -0.06, e * 0.29, false)));
+      refs.motorPos = [-W / 2 + pw / 2, H - 0.06, mz];
+    } else refs.motorPos = null;
 
     /* Dach */
     if (M.type === 'bio') buildLouvers(s, M, pg, W, D, zIn, pw, fh);
@@ -1825,7 +2024,7 @@ const Scene3D = (() => {
     const tw = W + 2.4, td = wall ? D + 1.6 : D + 2.4;
     const tz = wall ? td / 2 : D / 2;
     const terrace = box(tw, 0.06, td, mats.terrace, 0, -0.03, tz, false, true);
-    tex.planks.repeat.set(tw / 1.16, td / 2.32);
+    tex.planks.repeat.set(tw / 1.16, td / 2.32); tex.planksBump.repeat.copy(tex.planks.repeat);
     groups.terrace = terrace; scene.add(terrace);
     // Randeinfassung
     terrace.add(box(tw + 0.16, 0.1, 0.08, mats.curb, 0, 0.0, td / 2 + 0.04, false, true));
@@ -1837,7 +2036,7 @@ const Scene3D = (() => {
       const house = new T.Group(); groups.house = house; scene.add(house);
       const hw = Math.max(12, W + 6);
       house.add(box(hw, 4.6, 0.36, mats.plaster, 0, 2.3 - 0.06, -0.18, true, true));
-      tex.plaster.repeat.set(hw / 2.5, 2);
+      tex.plaster.repeat.set(hw / 2.5, 2); tex.plasterBump.repeat.copy(tex.plaster.repeat);
       house.add(box(hw, 0.3, 0.38, mats.plinth, 0, 0.09, -0.17, false, true));
       house.add(box(hw + 0.1, 0.08, 0.46, mats.coping, 0, 4.58, -0.18, false));
       const dw = Math.min(3.2, Math.max(1.6, W - 1.0)), dh = 2.25;
@@ -1899,19 +2098,25 @@ const Scene3D = (() => {
       const px = sx * (W / 2 + 1.15), pz = wall ? D + 0.5 : D + 0.8;
       fur.add(box(0.55, 0.75, 0.55, mats.potMat, px, 0.375, pz, true, true));
       fur.add(box(0.47, 0.02, 0.47, mats.soil, px, 0.74, pz, false));
-      const trunk = new T.Mesh(new T.CylinderGeometry(0.03, 0.045, 0.85, 8), mats.trunk);
-      trunk.position.set(px, 1.15, pz); trunk.castShadow = true; fur.add(trunk);
-      [[0, 1.72, 0, 0.32], [0.17, 1.55, 0.07, 0.24], [-0.15, 1.58, -0.08, 0.26]].forEach(([ox, oy, oz, r]) => {
-        const c = new T.Mesh(new T.IcosahedronGeometry(r, 1), mats.leaf);
-        c.position.set(px + ox, oy, pz + oz); c.castShadow = true; fur.add(c);
-      });
+      const trunk = new T.Mesh(new T.CylinderGeometry(0.028, 0.045, 0.95, 8), mats.trunk);
+      trunk.position.set(px, 1.2, pz); trunk.castShadow = true; fur.add(trunk);
+      // Krone aus unregelmäßigen Laubballen in zwei Grüntönen (deterministisch, damit sie bei jedem Aufbau gleich aussieht)
+      seed = 11 + (sx > 0 ? 5 : 0);
+      for (let i = 0; i < 9; i++) {
+        const a = i * 2.4 + rnd(), rr = i === 0 ? 0 : 0.12 + rnd() * 0.12, r = i === 0 ? 0.3 : 0.16 + rnd() * 0.1;
+        const c = new T.Mesh(lumpy(new T.IcosahedronGeometry(r, HQ ? 2 : 1), r * 0.22), i % 3 === 1 ? mats.leaf2 : mats.leaf);
+        c.position.set(px + Math.cos(a) * rr, 1.62 + (i === 0 ? 0.08 : rnd() * 0.28 - 0.06), pz + Math.sin(a) * rr);
+        c.castShadow = true; c.receiveShadow = HQ; fur.add(c);
+      }
       contact(fur, px, pz, 1.0, 1.0, 0.45);
     });
     // Hecke als ruhiger Hintergrund
     const hx = W / 2 + 3.4;
-    if (wall) [-1, 1].forEach(sx => { fur.add(box(0.7, 1.25, 3.4, mats.hedge, sx * hx, 0.6, 1.8, true, true)); contact(fur, sx * hx, 1.8, 1.4, 4.0, 0.35); });
-    else { fur.add(box(Math.max(6, W + 4), 1.25, 0.7, mats.hedge, 0, 0.6, -2.6, true, true)); contact(fur, 0, -2.6, Math.max(6, W + 4) + 0.6, 1.4, 0.35); }
-    tex.leaves.repeat.set(3, 1.2);
+    seed = 23;
+    if (wall) [-1, 1].forEach(sx => { fur.add(hedge(0.7, 1.25, 3.4, sx * hx, 1.8)); contact(fur, sx * hx, 1.8, 1.4, 4.0, 0.35); });
+    else { fur.add(hedge(Math.max(6, W + 4), 1.25, 0.7, 0, -2.6)); contact(fur, 0, -2.6, Math.max(6, W + 4) + 0.6, 1.4, 0.35); }
+    tex.leaves.repeat.set(3, 1.2); tex.leavesBump.repeat.copy(tex.leaves.repeat);
+    if (HQ || matchMedia('(min-width: 700px)').matches) buildGrass(s, tw, td, tz, wall);
 
     /* Maßketten (Schritt 4) */
     const dims = new T.Group(); groups.dims = dims; scene.add(dims);
@@ -1930,6 +2135,16 @@ const Scene3D = (() => {
     const r = Math.max(Math.max(W, D) / 2 + 4, wall ? Math.max(12, W + 6) / 2 + 0.5 : 0);
     const sc2 = lights.sun.shadow.camera;
     sc2.left = -r; sc2.right = r; sc2.top = r; sc2.bottom = -r; sc2.near = 0.5; sc2.far = 40; sc2.updateProjectionMatrix();
+    // Weiche Schatten (HQ): Halbschatten je Meter Abstand zum Schattenwerfer in Schattenkarten-Koordinaten.
+    // tan(1,2°) ≈ 0,021 – etwas weicher als die reine Sonnenscheibe (0,53°), wie bei leichtem Dunst
+    shadowK = (sc2.far - sc2.near) * 0.021 / (2 * r);
+    applySoftShadow();
+    envDirty = true;
+
+    /* Spiegelschicht auf alle Glasflächen der Pergola (teilt die Geometrie, folgt jeder Bewegung der Scheibe) */
+    const glassMeshes = [];
+    pg.traverse(o => { if (o.isMesh && o.material === mats.glass) glassMeshes.push(o); });
+    glassMeshes.forEach(o => { const r = new T.Mesh(o.geometry, mats.glassRefl); r.renderOrder = (o.renderOrder || 0) + 1; o.add(r); });
 
     /* Zustand ohne Animation wieder anwenden */
     setLouverMatrices(anim.louver);
@@ -1992,10 +2207,11 @@ const Scene3D = (() => {
     }
     // Gewölbtes Lamellenprofil (ähnlich Gibus-Flügelprofil), entlang der Länge extrudiert
     const sh = new T.Shape();
-    sh.moveTo(-0.095, -0.003);
-    sh.quadraticCurveTo(-0.02, 0.026, 0.095, 0.004);
-    sh.lineTo(0.095, -0.004);
-    sh.quadraticCurveTo(0.0, -0.014, -0.095, -0.009);
+    // 20,6 cm breit bei 20 cm Achsabstand: geschlossen überlappen die Kanten wie beim Original (keine Lichtspalte)
+    sh.moveTo(-0.103, -0.004);
+    sh.quadraticCurveTo(-0.02, 0.026, 0.103, 0.004);
+    sh.lineTo(0.103, -0.003);
+    sh.quadraticCurveTo(0.0, -0.014, -0.103, -0.01);
     sh.closePath();
     const geo = new T.ExtrudeGeometry(sh, { depth: len, bevelEnabled: false, curveSegments: 8 });
     geo.translate(0, 0, -len / 2);
@@ -2003,6 +2219,13 @@ const Scene3D = (() => {
     const mesh = new T.InstancedMesh(geo, mats.roof, items.length);
     mesh.castShadow = true; mesh.frustumCulled = false;
     pg.add(mesh);
+    // Endkappen an beiden Lamellenenden (Profil etwas größer, dunkel abgesetzt)
+    const capGeo = new T.ExtrudeGeometry(sh, { depth: 0.012, bevelEnabled: false, curveSegments: 8 });
+    capGeo.translate(0, 0, -0.006); capGeo.scale(1.06, 1.25, 1);
+    if (!alongZ) capGeo.rotateY(Math.PI / 2);
+    const caps = new T.InstancedMesh(capGeo, mats.cap, items.length * 2);
+    caps.castShadow = false; caps.frustumCulled = false;
+    pg.add(caps);
     let solar = null;
     if (M.solar) {
       if (alongZ) tex.solar.repeat.set(1, len / 0.17); else tex.solar.repeat.set(len / 0.17, 1);
@@ -2010,9 +2233,9 @@ const Scene3D = (() => {
       solar.frustumCulled = false; solar.visible = !!s.options.solar;
       pg.add(solar);
     }
-    refs.louvers = { mesh, solar, items, alongZ };
+    refs.louvers = { mesh, solar, caps, capOff: len / 2 + 0.004, items, alongZ };
   }
-  let _mat, _mat2, _off, _q, _p, _sc, _e;
+  let _mat, _mat2, _off, _q, _p, _sc, _e, _capM;
   function setLouverMatrices(deg) {
     const L = refs.louvers; if (!L) return;
     if (!_mat) { _mat = new T.Matrix4(); _mat2 = new T.Matrix4(); _off = new T.Matrix4().makeTranslation(0, 0.018, 0); _q = new T.Quaternion(); _p = new T.Vector3(); _sc = new T.Vector3(1, 1, 1); _e = new T.Euler(); }
@@ -2023,8 +2246,14 @@ const Scene3D = (() => {
       _p.set(it.x, it.y, it.z); _mat.compose(_p, _q, _sc);
       L.mesh.setMatrixAt(i, _mat);
       if (L.solar) { _mat2.copy(_mat).multiply(_off); L.solar.setMatrixAt(i, _mat2); }
+      if (L.caps) [-1, 1].forEach((e, j) => {
+        _capM = _capM || new T.Matrix4();
+        if (L.alongZ) _capM.makeTranslation(0, 0, e * L.capOff); else _capM.makeTranslation(e * L.capOff, 0, 0);
+        _mat2.copy(_mat).multiply(_capM); L.caps.setMatrixAt(i * 2 + j, _mat2);
+      });
     });
     L.mesh.instanceMatrix.needsUpdate = true;
+    if (L.caps) L.caps.instanceMatrix.needsUpdate = true;
     if (L.solar) L.solar.instanceMatrix.needsUpdate = true;
     dirty = true;
   }
@@ -2066,6 +2295,7 @@ const Scene3D = (() => {
     geo.setAttribute('position', new T.BufferAttribute(pos, 3));
     geo.setAttribute('uv', new T.BufferAttribute(uv, 2));
     geo.setIndex(idx);
+    tex.fabric.repeat.set(innerW / 0.22, Lz / 0.22); tex.fabricBump.repeat.copy(tex.fabric.repeat);
     const mesh = new T.Mesh(geo, mats.fabric); mesh.castShadow = true; mesh.frustumCulled = false;
     pg.add(mesh);
     const profiles = [];
@@ -2169,6 +2399,8 @@ const Scene3D = (() => {
     mats.frame.color.set(COLORS[s.colorFrame].hex);
     mats.roof.color.set(COLORS[s.colorRoof].hex);
     mats.fabric.color.set(s.colorRoof === 'ral7016' ? '#4A4E52' : COLORS[s.colorRoof].hex);
+    mats.cap.color.set(COLORS[s.colorRoof].hex).multiplyScalar(0.62);
+    envDirty = true;
   }
   function applyOptions(s) {
     if (refs.ledStrips) refs.ledStrips.visible = !!s.options.led;
@@ -2251,6 +2483,9 @@ const Scene3D = (() => {
     mats.doorGlass.emissiveIntensity = lerp(0, 0.09, n);
     mats.water.emissiveIntensity = lerp(0, 0.5, n);
     renderer.toneMappingExposure = lerp(1.0, 1.05, n);
+    // HQ: dezenter Lichtschein um LED-Leisten und Heizstrahler, nur in der Dämmerung/Nacht
+    if (post) { post.bloom.strength = 0.6 * n; post.bloom.enabled = post.on && n > 0.04; }
+    envDirty = true;
     dirty = true;
   }
 
@@ -2480,7 +2715,7 @@ const Scene3D = (() => {
     if (M.type === 'retract') list.push({ key: 'fabric', p: [W * 0.18, H + fh + 0.04, D * 0.55] });
     list.push({ key: 'drain', p: [W / 2 - pw / 2, 1.15, D - pw / 2 + pw / 2 + 0.01] });
     list.push({ key: M.zipIntegrated ? 'zipIntegrated' : 'sides', p: [-W * 0.22, H - 0.3, D - pw / 2] });
-    if (M.type !== 'glass') list.push({ key: 'motor', p: [-W / 2 + pw / 2, H + fh / 2, D * 0.35] });
+    if (M.type !== 'glass') list.push({ key: 'motor', p: refs.motorPos || [-W / 2 + pw / 2, H + fh / 2, D * 0.35] });
     return list;
   }
   const _hv = { v: null };
@@ -2497,7 +2732,7 @@ const Scene3D = (() => {
   /* ---------- Loop ---------- */
   function loop(now) {
     rafId = requestAnimationFrame(loop);
-    const dt = Math.min(0.05, (now - (lastT || now)) / 1000); lastT = now;
+    const rawDt = (now - (lastT || now)) / 1000, dt = Math.min(0.05, rawDt); lastT = now;
     let active = stepTweens(now);
     if (camTween) active = stepCam(now) || active;
     else if (focusDrift) {
@@ -2509,17 +2744,31 @@ const Scene3D = (() => {
     else if (!reducedMotion.matches && !sunMode && hasInteracted !== 'dragging' && now - lastInteract > 6000) { idleRotate(dt); active = true; }
     if (stepRain(dt)) active = true;
     const moved = controls.update();
+    if (envDirty && envCam && now - envLast > 280 && !camTween) updateEnvProbe(now);
     if (active || moved || dirty) {
-      renderer.render(scene, camera); dirty = false;
+      draw(); dirty = false;
       callbacks.onFrame && callbacks.onFrame();
-      perfSample(dt);
+      perfSample(rawDt, now);
     } else { perf.frames = 0; perf.acc = 0; }
   }
-  function perfSample(dt) {
-    if (perf.degraded) return;
-    perf.frames++; perf.acc += dt;
-    if (perf.frames >= 90) {
-      if (perf.acc / perf.frames > 1 / 28) {
+  function draw() {
+    if (post && post.on) post.composer.render(); else renderer.render(scene, camera);
+  }
+  /* Automatische Qualitätsstufe: nach kurzer Aufwärmphase (Shader-Kompilierung) wird gemessen.
+     Zu langsam → erst HQ-Effekte aus, danach Auflösung senken. Messfenster: 30 Bilder oder 1,5 s. */
+  function perfSample(dt, now) {
+    if (perf.degraded || qForced) return;
+    if (!perf.since) perf.since = now;
+    if (now - perf.since < 1500) return;
+    perf.frames++; perf.acc += Math.min(dt, 1);
+    if (perf.frames >= 30 || perf.acc >= 1.5) {
+      if (perf.acc / perf.frames > 1 / 28 && post && post.on) {
+        // Stufe 1: Nachbearbeitung und weiche Schatten abschalten, Glas und Texturen bleiben
+        post.on = false; post.bloom.enabled = false;
+        applySoftShadow();
+        if (DEBUG) console.info('[scene] HQ-Effekte abgeschaltet (Leistung)');
+        perf.since = now;                                     // neue Aufwärmphase für die einfache Stufe
+      } else if (perf.acc / perf.frames > 1 / 28) {
         perf.degraded = true;
         // Schatten bleiben an (sie sind der Kern des Sonnenverlaufs) – nur die Auflösung wird gesenkt
         renderer.setPixelRatio(Math.min(1.25, window.devicePixelRatio || 1));
@@ -2539,7 +2788,112 @@ const Scene3D = (() => {
     const w = host.clientWidth, h = host.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h, false);
+    if (post) { post.composer.setPixelRatio(renderer.getPixelRatio()); post.composer.setSize(w, h); }
     camera.aspect = w / h; camera.updateProjectionMatrix();
+    dirty = true;
+  }
+
+  /* ---------- HQ: Nachbearbeitung, weiche Schatten, Umgebungsspiegelung ---------- */
+  function setupPost(m) {
+    const w = Math.max(1, host.clientWidth), h = Math.max(1, host.clientHeight), pr = renderer.getPixelRatio();
+    // MSAA ×4 im HDR-Puffer: saubere Kanten an Lamellen und Profilen
+    const rt = new T.WebGLRenderTarget(w * pr, h * pr, { type: T.HalfFloatType, samples: 4 });
+    const composer = new m.EffectComposer(renderer, rt);
+    composer.addPass(new m.RenderPass(scene, camera));
+    // Umgebungsverdeckung (GTAO): feine Verschattung in Ecken, Fugen, zwischen Lamellen, am Pfostenfuß und an der Wand
+    const ao = new m.GTAOPass(scene, camera, w * pr, h * pr);
+    ao.updateGtaoMaterial({ radius: 0.35, distanceExponent: 1.6, thickness: 1.5, scale: 1.0, samples: 16, distanceFallOff: 1.0, screenSpaceRadius: false });
+    ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
+    ao.blendIntensity = 0.9;
+    ao.normalMaterial.side = T.DoubleSide;
+    // Nur feste Flächen verdecken: Himmel, Beschriftungen, Glas, Klickflächen und Lichtkegel nicht
+    ao.overrideVisibility = function () {
+      const cache = this._visibilityCache;
+      this.scene.traverse(o => {
+        cache.set(o, o.visible);
+        const mt = o.material;
+        if (o.isPoints || o.isLine || o.isSprite || o === groups.sky ||
+            o.userData.noAO || (mt && !Array.isArray(mt) && (mt.transparent || mt.colorWrite === false || mt.isMeshBasicMaterial))) o.visible = false;
+      });
+    };
+    composer.addPass(ao);
+    const bloom = new m.UnrealBloomPass(new T.Vector2(w * pr / 2, h * pr / 2), 0, 0.5, 0.92);
+    bloom.enabled = false;
+    composer.addPass(bloom);
+    composer.addPass(new m.OutputPass());
+    post = { composer, ao, bloom, on: true };
+  }
+  /* Halbschatten nach Abstand (PCSS) für die gerichtete Sonne: Suche der Schattenwerfer, dann Filter mit passender Breite.
+     Wird über shadow.radius gesteuert (> 0 = weich); 0 = Standard-PCF (Mobil/Leistungsmodus). */
+  const PCSS_GLSL = `
+  float pcssShadow( sampler2D map, vec2 mapSize, float k, vec4 sc ) {
+    float ang = 6.2831853 * fract( 52.9829189 * fract( dot( gl_FragCoord.xy, vec2( 0.06711056, 0.00583715 ) ) ) );
+    float texel = 1.0 / mapSize.x;
+    float search = max( k * 0.12, 4.0 * texel );
+    float sum = 0.0, cnt = 0.0;
+    for ( int i = 0; i < 12; i ++ ) {
+      float fi = float( i ), a = fi * 2.3999632 + ang, r = sqrt( ( fi + 0.5 ) / 12.0 );
+      float d = unpackRGBAToDepth( texture2D( map, sc.xy + vec2( cos( a ), sin( a ) ) * r * search ) );
+      if ( d < sc.z ) { sum += d; cnt += 1.0; }
+    }
+    if ( cnt < 0.5 ) return 1.0;
+    float pen = clamp( ( sc.z - sum / cnt ) * k, 1.5 * texel, search );
+    float lit = 0.0;
+    for ( int i = 0; i < 24; i ++ ) {
+      float fi = float( i ), a = fi * 2.3999632 + ang, r = sqrt( ( fi + 0.5 ) / 24.0 );
+      lit += texture2DCompare( map, sc.xy + vec2( cos( a ), sin( a ) ) * r * pen, sc.z );
+    }
+    return lit / 24.0;
+  }
+  `;
+  function patchSoftShadows() {
+    const head = 'float getShadow( sampler2D shadowMap, vec2 shadowMapSize, float shadowBias, float shadowRadius, vec4 shadowCoord ) {';
+    const test = 'if ( frustumTest ) {';
+    let c = T.ShaderChunk.shadowmap_pars_fragment;
+    if (!c.includes(head) || !c.includes(test) || !c.includes('texture2DCompare')) return false;
+    c = c.replace(head, PCSS_GLSL + '\n\t' + head)
+         .replace(test, 'if ( frustumTest && shadowRadius > 0.0 ) return pcssShadow( shadowMap, shadowMapSize, shadowRadius, shadowCoord );\n\t\t' + test);
+    T.ShaderChunk.shadowmap_pars_fragment = c;
+    return true;
+  }
+  let softShadows = false;
+  function applySoftShadow() {
+    if (!lights.sun) return;
+    // Mit Patch: > 0 = weich (Wert = Halbschatten-Faktor), 0 = Standard-PCFSoft. Ohne Patch wird der Wert nicht ausgewertet.
+    lights.sun.shadow.radius = softShadows ? (post && post.on ? shadowK : 0) : 1;
+    dirty = true;
+  }
+  /* Echte Spiegelung: Würfelkamera nimmt die aktuelle Szene (Himmel, Haus, Garten, Tageszeit) auf – für Glas und Fenster */
+  function setupEnvProbe() {
+    const rt = new T.WebGLCubeRenderTarget(256);           // 8 Bit: auf allen GPUs zuverlässig vorfilterbar
+    envCam = new T.CubeCamera(0.05, 120, rt);
+    scene.add(envCam);
+    envPm = new T.PMREMGenerator(renderer);
+    envDirty = true;
+  }
+  function updateEnvProbe(now) {
+    if (!envCam || !lastState) return;
+    envDirty = false; envLast = now;
+    envCam.position.set(0, 1.4, lastState.depth / 200);
+    const hide = [groups.sunpath, groups.dims].filter(Boolean), vis = hide.map(g => g.visible);
+    hide.forEach(g => { g.visible = false; });
+    mats.glass.visible = mats.glassRefl.visible = mats.doorGlass.visible = false;
+    const au = renderer.shadowMap.autoUpdate;
+    renderer.shadowMap.autoUpdate = false;                 // Schattenkarte vom letzten Bild wiederverwenden
+    try {
+      envCam.update(renderer, scene);
+      // Vorgefiltert (PMREM), damit auch leicht raue Flächen korrekt spiegeln
+      envRT = envPm.fromCubemap(envCam.renderTarget.texture, envRT);
+      if (mats.glassRefl.envMap !== envRT.texture) {
+          mats.glass.envMap = mats.glassRefl.envMap = mats.doorGlass.envMap = envRT.texture;
+        mats.glass.needsUpdate = mats.glassRefl.needsUpdate = mats.doorGlass.needsUpdate = true;
+      }
+    }
+    finally {
+      renderer.shadowMap.autoUpdate = au;
+      mats.glass.visible = mats.glassRefl.visible = mats.doorGlass.visible = true;
+      hide.forEach((g, i) => { g.visible = vis[i]; });
+    }
     dirty = true;
   }
 
@@ -2564,7 +2918,11 @@ const Scene3D = (() => {
 
     const finePointer = matchMedia('(pointer: fine)').matches;          // Desktop: volle Qualität
     renderer = new T.WebGLRenderer({ antialias: finePointer || window.devicePixelRatio < 2, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const qp = QS.get('q');
+    qForced = qp === 'hq' || qp === 'lo';
+    HQ = renderer.capabilities.isWebGL2 && (qp === 'hq' || (qp !== 'lo' && finePointer && (navigator.hardwareConcurrency || 4) >= 4 && !matchMedia('(max-width: 699px)').matches));
+    // HQ rendert mit MSAA im Nachbearbeitungspuffer – dort reicht Pixel-Ratio 1,5 auch auf Retina-Displays
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, HQ ? 1.5 : 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = T.PCFSoftShadowMap;
     renderer.toneMapping = T.ACESFilmicToneMapping;
@@ -2574,6 +2932,22 @@ const Scene3D = (() => {
 
     scene = new T.Scene();
     camera = new T.PerspectiveCamera(40, 1, 0.1, 200);
+    if (HQ) {
+      try {
+        const [ec, rp, gt, ub, op] = await Promise.all([
+          import('three/addons/postprocessing/EffectComposer.js'),
+          import('three/addons/postprocessing/RenderPass.js'),
+          import('three/addons/postprocessing/GTAOPass.js'),
+          import('three/addons/postprocessing/UnrealBloomPass.js'),
+          import('three/addons/postprocessing/OutputPass.js')
+        ]);
+        softShadows = patchSoftShadows();
+        setupPost({ EffectComposer: ec.EffectComposer, RenderPass: rp.RenderPass, GTAOPass: gt.GTAOPass, UnrealBloomPass: ub.UnrealBloomPass, OutputPass: op.OutputPass });
+      } catch (e) {
+        console.warn('[scene] HQ-Effekte nicht verfügbar', e);
+        post = null;
+      }
+    }
     const pm = new T.PMREMGenerator(renderer);
     scene.environment = pm.fromScene(new RoomEnvironment(renderer), 0.04).texture;
     pm.dispose();
@@ -2581,6 +2955,7 @@ const Scene3D = (() => {
     makeTextures();
     makeMaterials();
     makeEnvironment();
+    if (HQ) setupEnvProbe();
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -2623,7 +2998,7 @@ const Scene3D = (() => {
 
     ready = true;
     resize();
-    if (DEBUG) window.__CG_SCENE__ = { T, renderer, scene, camera, lights, mats, groups, refs };
+    if (DEBUG) window.__CG_SCENE__ = { T, renderer, scene, camera, lights, mats, groups, refs, get post() { return post; }, get HQ() { return HQ; }, get envCam() { return envCam; }, controls };
     return true;
   }
 
